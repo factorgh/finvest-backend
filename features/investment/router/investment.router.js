@@ -1,6 +1,7 @@
 import express from "express";
 import {
   createInvestment,
+  deleteInvestment,
   getAllInvestments,
 } from "../controller/investment.controller.js";
 
@@ -11,6 +12,6 @@ router.get("/", getAllInvestments);
 router.post("/", createInvestment);
 // router.get("/:id", getOne);
 // router.patch("/:id", updateOne);
-// router.delete("/:id", deleteOne);
+router.delete("/:id", deleteInvestment);
 
 export default router;

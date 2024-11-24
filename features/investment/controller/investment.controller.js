@@ -249,3 +249,13 @@ export const archiveTransactions = async () => {
 //     `Archived ${result.nModified} transactions for quarter ${currentQuarter}`
 //   );
 // };
+export const deleteInvestment = catchAsync(async (req, res, nex) => {
+  const { id } = req.params;
+  const investment = await Investment.findByIdAndDelete(id);
+  if (!investment) {
+    return res
+      .status(404)
+      .json({ status: "fail", message: "Investment not found" });
+  }
+  res.status(204).json({ status: "success", data: null });
+});
