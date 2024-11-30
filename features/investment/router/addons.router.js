@@ -10,7 +10,7 @@ const router = express.Router();
 // router.get("/", getAll);
 router.post("/", addAddOnToInvestment);
 // router.get("/:id", getOne);
-router.patch("/single/:addOnId", updateAddOnStatus);
+router.put("/single/:id", updateAddOnStatus);
 // router.delete("/:id", deleteOne);
 
 export default router;

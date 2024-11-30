@@ -65,18 +65,20 @@ export const getOne = (Model, popOptions) =>
     });
   });
 
-export const getAll = (Model) =>
+const getAll = (Model) =>
   catchAsync(async (req, res, next) => {
     // To allow for nested GET reviews on tour (hack)
     let filter = {};
     if (req.params.tourId) filter = { tour: req.params.tourId };
 
+    // Here we make sure to apply the sorting based on 'createdAt' in descending order
     const features = new APIFeatures(Model.find(filter), req.query)
       .filter()
-      .sort()
+      .sort({ createdAt: -1 })
       .limitFields()
       .paginate();
-    // const doc = await features.query.explain();
+
+    // Get documents based on the applied features
     const doc = await features.query;
 
     // SEND RESPONSE

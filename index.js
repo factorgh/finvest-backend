@@ -19,6 +19,8 @@ import investmentRoute from "./features/investment/router/investment.router.js";
 import oneOffRoute from "./features/investment/router/one_offs.router.js";
 import "./utils/schedule_cron_jobs.js";
 
+import notificationRouter from "./features/notifications/routes/notification.js";
+
 // Check if con scheduling works properly
 cron.schedule("* * * * *", () => {
   console.log("Running a task every day at midnight");
@@ -84,6 +86,8 @@ app.use("/api/v1/users", userRouter);
 app.use("/api/v1/investments", investmentRoute);
 app.use("/api/v1/add-on", addOnRoute);
 app.use("/api/v1/one-offs", oneOffRoute);
+app.use("/api/v1/assets", assetsRoute);
+app.use("/api/v1/notification", notificationRouter);
 
 // Aseets routes
 app.use("/api/v1/assets", assetsRoute);

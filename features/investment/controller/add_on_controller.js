@@ -34,10 +34,10 @@ export const addAddOnToInvestment = async (req, res, next) => {
 
 // Update add on Status
 export const updateAddOnStatus = async (req, res, next) => {
-  const { addOnId } = req.params;
+  const { id } = req.params;
   const { status } = req.body;
   try {
-    const addOn = await AddOn.findById(addOnId);
+    const addOn = await AddOn.findById(id);
     if (!addOn) {
       return res
         .status(404)
