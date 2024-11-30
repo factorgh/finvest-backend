@@ -15,9 +15,14 @@ const AddOnSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "finalized"], // Add-on can be active or finalized
-      default: "active",
+      enum: ["active", "inactive"],
+      default: "inactive",
     },
+    accruedAddOnInterest: {
+      type: Number,
+      default: 0,
+    },
+
     rate: {
       type: Number,
       required: [true, "Rate is required"],

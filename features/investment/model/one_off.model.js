@@ -13,10 +13,9 @@ const OneOffSchema = new mongoose.Schema(
       required: [true, "Add-on amount is required"],
       min: [0, "Add-on amount cannot be negative"],
     },
-    status: {
+    currency: {
       type: String,
-      enum: ["active", "finalized"], // Add-on can be active or finalized
-      default: "active",
+      required: [true, "Currency is required"],
     },
     rate: {
       type: Number,

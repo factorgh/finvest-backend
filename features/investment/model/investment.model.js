@@ -83,7 +83,10 @@ const InvestmentSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Cannot be negative"],
     },
-    pdf: { type: Array, default: [], unique: true },
+    certificate: { type: Array, default: [], unique: true },
+    checklist: { type: Array, default: [], unique: true },
+    mandate: { type: Array, default: [], unique: true },
+    partnerForm: { type: Array, default: [], unique: true },
     lastModified: { type: Date, default: Date.now },
   },
   {

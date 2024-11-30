@@ -111,7 +111,11 @@ export const getUserInvestments = catchAsync(async (req, res, next) => {
 // Get all user investements
 export const getAllInvestments = catchAsync(async (req, res, next) => {
   // Find user and populate investments
-  const investments = await Investment.find().populate("userId");
+  const investments = await Investment.find().populate([
+    "addOns",
+    "oneOffs",
+    "userId",
+  ]);
   if (!investments) {
     return res.status(404).json({ status: "fail", message: "No investments" });
   }
@@ -153,7 +157,8 @@ export const getInvestment = catchAsync(async (req, res, next) => {
   const investment = await Investment.findOne({
     _id: investmentId,
     user: userId,
-  });
+  }).populate(["addOns", "oneOffs"]);
+
   if (!investment) {
     return res.status(404).json({
       status: "fail",
