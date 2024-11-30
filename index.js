@@ -19,7 +19,12 @@ import investmentRoute from "./features/investment/router/investment.router.js";
 import oneOffRoute from "./features/investment/router/one_offs.router.js";
 import "./utils/schedule_cron_jobs.js";
 
+import activityLogRouter from "./features/activity-log/activity.routes.js";
+import loanRouter from "./features/loans/loans.routes.js";
 import notificationRouter from "./features/notifications/routes/notification.js";
+import paymentRouter from "./features/payments/payments.route.js";
+import rentalRouter from "./features/rentals/rentals.route.js";
+import withdrawalRouter from "./features/withdrawals/withdrawal.route.js";
 
 // Check if con scheduling works properly
 cron.schedule("* * * * *", () => {
@@ -87,7 +92,12 @@ app.use("/api/v1/investments", investmentRoute);
 app.use("/api/v1/add-on", addOnRoute);
 app.use("/api/v1/one-offs", oneOffRoute);
 app.use("/api/v1/assets", assetsRoute);
-app.use("/api/v1/notification", notificationRouter);
+app.use("/api/v1/notifications", notificationRouter);
+app.use("/api/v1/activity-logs", activityLogRouter);
+app.use("/api/v1/loans", loanRouter);
+app.use("/api/v1/rentals", rentalRouter);
+app.use("/api/v1/payments", paymentRouter);
+app.use("/api/v1/withdrawals", withdrawalRouter);
 
 // Aseets routes
 app.use("/api/v1/assets", assetsRoute);

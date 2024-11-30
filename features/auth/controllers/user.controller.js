@@ -40,7 +40,7 @@ export const deleteMe = catchAsync(async (req, res, next) => {
 });
 
 export const getAll = catchAsync(async (req, res, next) => {
-  const allUsers = await User.find();
+  const allUsers = await User.find({ role: "user" });
   console.log("allUsers", allUsers);
   res.status(200).json({
     status: "success",

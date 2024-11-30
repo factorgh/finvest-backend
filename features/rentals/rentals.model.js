@@ -1,14 +1,10 @@
 import mongoose from "mongoose";
 
-const AssetsSchema = new mongoose.Schema(
+const rentalsSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
-    },
-    assetName: {
-      type: String,
       required: true,
     },
     assetClass: {
@@ -20,19 +16,13 @@ const AssetsSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    accruedInterest: {
+
+    amountDue: {
       type: Number,
       required: true,
     },
-    managementFee: {
+    overdueRate: {
       type: Number,
-      required: true,
-    },
-    assetImage: {
-      type: String,
-    },
-    timeCourse: {
-      type: String,
       required: true,
     },
     quater: {
@@ -40,10 +30,13 @@ const AssetsSchema = new mongoose.Schema(
       required: true,
       enum: ["Q1", "Q2", "Q3", "Q4"],
     },
-    maturityDate: {
+    overdueDate: {
       type: Date,
       required: true,
-      validate: [validateMaturityDate, "Invalid maturity date"],
+    },
+    returnDate: {
+      type: Date,
+      required: true,
     },
     mandate: {
       type: Array,
@@ -66,14 +59,10 @@ const AssetsSchema = new mongoose.Schema(
       default: true,
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-function validateMaturityDate(maturityDate) {
-  const now = new Date();
-  return maturityDate <= now;
-}
-
-const Assets = mongoose.model("Assets", AssetsSchema);
-
-export default Assets;
+const Rental = mongoose.model("Rental", rentalsSchema);
+export default Rental;

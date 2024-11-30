@@ -19,7 +19,7 @@ export const getNotification = getOne(Notification);
 export const readAllNotifications = catchAsync(async (req, res, next) => {
   await Notification.updateMany(
     {
-      user: req.user.id,
+      user: req.user._id,
       read: false,
     },
     { $set: { read: true } }
@@ -35,7 +35,7 @@ export const readAllNotifications = catchAsync(async (req, res, next) => {
 // Get notification by specific user
 export const getNotificationByUser = catchAsync(async (req, res, next) => {
   const notification = await Notification.findOne({
-    user: req.body.id,
+    user: req.user._id,
     _id: req.params.id,
   });
 

@@ -12,6 +12,6 @@ router.get("/", getAllInvestments);
 router.post("/", createInvestment);
 // router.get("/:id", getOne);
 // router.patch("/:id", updateOne);
-router.delete("/:id", deleteInvestment);
+router.delete("/single/:id", deleteInvestment);
 
 export default router;

@@ -4,12 +4,12 @@ import {
   getAll,
   getOne,
   updateOne,
-} from "../../factory/factory-functions.js";
+} from "../factory/factory-functions.js";
 
-import AssetsModel from "../model/assets_model.js";
+import ActivityLog from "./activity.model.js";
 
-export const createAsset = createOne(AssetsModel);
-export const deleteAsset = deleteOne(AssetsModel);
-export const updateAsset = updateOne(AssetsModel);
-export const getAllAssets = getAll(AssetsModel);
-export const getAsset = getOne(AssetsModel);
+export const createActivityLog = createOne(ActivityLog);
+export const deleteActivityLog = deleteOne(ActivityLog);
+export const updateActivityLog = updateOne(ActivityLog);
+export const getAllActivityLogs = getAll(ActivityLog);
+export const getActivityLog = getOne(ActivityLog);

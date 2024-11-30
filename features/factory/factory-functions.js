@@ -65,7 +65,7 @@ export const getOne = (Model, popOptions) =>
     });
   });
 
-const getAll = (Model) =>
+export const getAll = (Model, popOptions) =>
   catchAsync(async (req, res, next) => {
     // To allow for nested GET reviews on tour (hack)
     let filter = {};
