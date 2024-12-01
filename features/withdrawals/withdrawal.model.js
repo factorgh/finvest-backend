@@ -16,7 +16,6 @@ const withdrawalSchema = new mongoose.Schema({
   },
   approvedDate: {
     type: Date,
-    required: true,
   },
   status: {
     type: String,

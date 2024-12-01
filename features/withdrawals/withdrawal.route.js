@@ -13,7 +13,7 @@ const router = express.Router();
 router.get("/", getAllWithdrawals);
 router.post("/", createWithdrawal);
 router.get("/single/:id", getWithdrawal);
-router.patch("/single/:id", updateWithdrawal);
+router.put("/single/:id", updateWithdrawal);
 router.delete("/single/:id", deleteWithdrawal);
 
 export default router;
