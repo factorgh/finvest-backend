@@ -10,13 +10,12 @@ const paymentSchema = new mongoose.Schema({
     type: Number,
     required: [true, "Amount is required"],
   },
-  RequestedDate: {
+  requestedDate: {
     type: Date,
     required: true,
   },
-  ApprovedDate: {
+  approvedDate: {
     type: Date,
-    required: true,
   },
   status: {
     type: String,

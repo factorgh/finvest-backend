@@ -13,7 +13,7 @@ const router = express.Router();
 router.get("/", getAllPayments);
 router.post("/", createPayment);
 router.get("/single/:id", getPayment);
-router.patch("/single/:id", updatePayment);
+router.put("/single/:id", updatePayment);
 router.delete("/single/:id", deletePayment);
 
 export default router;
