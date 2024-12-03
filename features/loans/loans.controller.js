@@ -25,4 +25,17 @@ export const getAllLoans = catchAsync(async (req, res, next) => {
     },
   });
 });
+export const getUserLoans = catchAsync(async (req, res, next) => {
+  if (!req.user) {
+    return next(new AppError("User not found. Please log in.", 401)); // Return an error if req.user is not found
+  }
+  const doc = await LoanModel.find({ user: req.user._id });
+  res.status(200).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
+
 export const getLoan = getOne(LoanModel);

@@ -4,7 +4,7 @@ import { OneOff } from "../model/one_off.model.js";
 
 export const addOneOffsToInvestment = catchAsync(async (req, res, next) => {
   const { investmentId } = req.params;
-  const { amount, rate, dateOfEntry } = req.body;
+  const { amount, rate, dateOfEntry, currency } = req.body;
 
   const investment = await Investment.findById(investmentId);
   if (!investment) {
@@ -13,7 +13,7 @@ export const addOneOffsToInvestment = catchAsync(async (req, res, next) => {
       .json({ status: "fail", message: "Investment not found" });
   }
 
-  const newOneOff = { amount, rate, dateOfEntry: Date.now() };
+  const newOneOff = { amount, rate, dateOfEntry: Date.now(), currency };
   const createdOeneOff = await OneOff.create(newOneOff);
   investment.oneOffs.push(createdOeneOff._id);
   investment.lastModified = new Date();

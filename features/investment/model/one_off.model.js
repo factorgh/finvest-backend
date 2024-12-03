@@ -5,7 +5,7 @@ const OneOffSchema = new mongoose.Schema(
   {
     dateOfEntry: {
       type: Date,
-      required: true,
+
       default: Date.now,
     },
     amount: {
@@ -15,7 +15,6 @@ const OneOffSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      required: [true, "Currency is required"],
     },
     rate: {
       type: Number,

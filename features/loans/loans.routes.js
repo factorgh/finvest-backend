@@ -1,8 +1,10 @@
+import { verifyToken } from "../auth/middleware/verification.js";
 import {
   createLoan,
   deleteLoan,
   getAllLoans,
   getLoan,
+  getUserLoans,
   updateLoan,
 } from "./loans.controller.js";
 
@@ -11,6 +13,7 @@ const router = express.Router();
 
 // Loans routes
 router.get("/", getAllLoans);
+router.get("/user", verifyToken, getUserLoans);
 router.post("/", createLoan);
 router.get("/single/:id", getLoan);
 router.put("/single/:id", updateLoan);

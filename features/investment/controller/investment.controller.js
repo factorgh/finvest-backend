@@ -3,6 +3,7 @@ import { getQuarterEndDate } from "../../../utils/handle_date_range.js";
 import { calculateDynamicAccruedReturn } from "../../../utils/handle_dynamic_rate.js";
 import User from "../../auth/models/user.model.js";
 import catchAsync from "../../error/catch-async-error.js";
+import { updateOne } from "../../factory/factory-functions.js";
 import Investment from "../model/investment.model.js";
 
 export const createInvestment = catchAsync(async (req, res, next) => {
@@ -94,7 +95,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
 
 // Get all user investements
 export const getUserInvestments = catchAsync(async (req, res, next) => {
-  const { userId } = req.params;
+  const userId = req.user._id;
 
   // Find user and populate investments
   const user = await User.findById(userId).populate("investments");
@@ -127,27 +128,7 @@ export const getAllInvestments = catchAsync(async (req, res, next) => {
 });
 
 // Update investment
-export const updateInvestment = catchAsync(async (req, res, next) => {
-  const { investmentId } = req.params;
-  const { principal, guaranteedRate, addOns, oneOffs } = req.body;
-
-  const investment = await Investment.findById(investmentId);
-  if (!investment) {
-    return res
-      .status(404)
-      .json({ status: "fail", message: "Investment not found" });
-  }
-
-  investment.principal = principal;
-  investment.guaranteedRate = guaranteedRate;
-  investment.addOns = addOns;
-  investment.oneOffs = oneOffs;
-  investment.lastModified = new Date();
-
-  await investment.save();
-
-  res.status(200).json({ status: "success", data: investment });
-});
+export const updateInvestment = updateOne(Investment);
 
 // Get a single transaction for a partcular user
 export const getInvestment = catchAsync(async (req, res, next) => {

@@ -90,7 +90,7 @@ app.use("/api/v1/users", userRouter);
 // Investment routes
 app.use("/api/v1/investments", investmentRoute);
 app.use("/api/v1/add-on", addOnRoute);
-app.use("/api/v1/one-offs", oneOffRoute);
+app.use("/api/v1/add-offs", oneOffRoute);
 app.use("/api/v1/assets", assetsRoute);
 app.use("/api/v1/notifications", notificationRouter);
 app.use("/api/v1/activity-logs", activityLogRouter);

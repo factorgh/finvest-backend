@@ -1,4 +1,5 @@
 import express from "express";
+import { verifyToken } from "../../auth/middleware/verification.js";
 import {
   createNotification,
   deleteNotification,
@@ -12,9 +13,10 @@ const router = express.Router();
 // Define your routes here
 
 router.get("/", getAllNotifications);
-router.get("/user/:userId", getNotificationByUser);
+router.get("/user", verifyToken, getNotificationByUser);
 router.delete("/:id", deleteNotification);
-router.post("/readAll", readAllNotifications);
+router.put("/readAll/:id", readAllNotifications);
+
 router.post("/", createNotification);
 
 export default router;

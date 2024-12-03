@@ -47,3 +47,11 @@ export const getAll = catchAsync(async (req, res, next) => {
     allUsers,
   });
 });
+export const getAllAdmin = catchAsync(async (req, res, next) => {
+  const users = await User.find({ role: "admin" });
+
+  res.status(200).json({
+    status: "success",
+    users,
+  });
+});

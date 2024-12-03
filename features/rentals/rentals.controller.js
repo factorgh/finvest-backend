@@ -21,4 +21,17 @@ export const getAllRentals = catchAsync(async (req, res, next) => {
     },
   });
 });
+export const getUserRentals = catchAsync(async (req, res, next) => {
+  if (!req.user) {
+    return next(new AppError("User not found. Please log in.", 401)); // Return an error if req.user is not found
+  }
+  const doc = await RentalModel.find({ user: req.user._id });
+  res.status(200).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
+
 export const getRental = getOne(RentalModel);
