@@ -10,6 +10,7 @@ import {
 import Notification from "../models/notification.js";
 
 export const createNotification = createOne(Notification);
+
 export const deleteNotification = deleteOne(Notification);
 export const updateNotification = updateOne(Notification);
 export const getAllNotifications = getAll(Notification);
@@ -76,7 +77,7 @@ export const getNotificationByUser = catchAsync(async (req, res, next) => {
   // Use $in to find notifications where the user's _id is in the 'users' array
   const notifications = await Notification.find({
     users: req.user._id,
-  });
+  }).sort({ createdAt: -1 });
 
   if (!notifications || notifications.length === 0) {
     return res.status(404).json({

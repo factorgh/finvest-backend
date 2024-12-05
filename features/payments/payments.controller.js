@@ -9,10 +9,11 @@ import PaymentModel from "./payments.model.js";
 
 // Create payment handler
 export const createPayment = catchAsync(async (req, res, next) => {
+  console.log(req.body);
   const { user, amount } = req.body; // Extract userId and payment amount from the request body
 
   // Step 1: Fetch the user's investment details
-  const investment = await Investment.findOne({ user });
+  const investment = await Investment.findOne({ userId: user });
 
   if (!investment) {
     return next(new AppError("Investment not found for this user.", 404)); // Handle case when investment is not found
@@ -31,7 +32,13 @@ export const createPayment = catchAsync(async (req, res, next) => {
   // Step 3: Create the payment record
   const doc = await PaymentModel.create(req.body);
 
-  // Step 4: Return success response
+  // Step 4: Reduce the investment principal by the payment amount
+  investment.principal -= amount;
+
+  // Step 5: Save the updated investment
+  await investment.save();
+
+  // Step 6: Return success response
   res.status(201).json({
     status: "success",
     data: {
@@ -39,11 +46,14 @@ export const createPayment = catchAsync(async (req, res, next) => {
     },
   });
 });
+
 export const deletePayment = deleteOne(PaymentModel);
 export const updatePayment = updateOne(PaymentModel);
 //
 export const getAllPayments = catchAsync(async (req, res, next) => {
-  const payments = await PaymentModel.find().populate("user");
+  const payments = await PaymentModel.find()
+    .sort({ rrquestedDate: -1 })
+    .populate("user");
   res.status(200).json({
     status: "success",
     data: {
@@ -53,7 +63,7 @@ export const getAllPayments = catchAsync(async (req, res, next) => {
 });
 export const getUserPayments = catchAsync(async (req, res, next) => {
   if (!req.user) {
-    return next(new AppError("User not found. Please log in.", 401)); // Return an error if req.user is not found
+    return next(new AppError("User not found. Please log in.", 401));
   }
   const doc = await PaymentModel.find({ user: req.user._id });
   res.status(200).json({

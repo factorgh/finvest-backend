@@ -26,31 +26,23 @@ const LoanSchema = new mongoose.Schema(
     },
     amountDue: {
       type: Number,
-      required: true,
     },
 
     status: {
       type: String,
-      enum: ["active", "overdue", "fufilled"],
-      default: "active",
+      enum: ["Active", "Inactive"],
+      default: "Active",
     },
     overdueDate: {
       type: Date,
       required: true,
     },
-    mandate: {
+
+    agreements: {
       type: Array,
       default: [],
     },
-    certificate: {
-      type: Array,
-      default: [],
-    },
-    partnerForm: {
-      type: Array,
-      default: [],
-    },
-    checklist: {
+    others: {
       type: Array,
       default: [],
     },

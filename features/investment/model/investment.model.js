@@ -10,7 +10,7 @@ const InvestmentSchema = new mongoose.Schema(
     transactionId: {
       type: String,
       unique: true,
-      required: true, // Unique identifier for each transaction
+      required: true,
     },
     name: {
       type: String,

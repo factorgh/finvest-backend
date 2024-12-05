@@ -24,9 +24,18 @@ const AssetsSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    maturityDate: {
+      type: Date,
+      required: true,
+    },
     managementFee: {
       type: Number,
       required: true,
+    },
+    quater: {
+      type: String,
+      required: true,
+      enum: ["Q1", "Q2", "Q3", "Q4"],
     },
     assetImage: {
       type: String,
@@ -35,16 +44,7 @@ const AssetsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    quater: {
-      type: String,
-      required: true,
-      enum: ["Q1", "Q2", "Q3", "Q4"],
-    },
-    maturityDate: {
-      type: Date,
-      required: true,
-      validate: [validateMaturityDate, "Invalid maturity date"],
-    },
+
     mandate: {
       type: Array,
       default: [],
@@ -58,6 +58,10 @@ const AssetsSchema = new mongoose.Schema(
       default: [],
     },
     checklist: {
+      type: Array,
+      default: [],
+    },
+    others: {
       type: Array,
       default: [],
     },

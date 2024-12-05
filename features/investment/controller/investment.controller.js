@@ -94,20 +94,20 @@ export const createInvestment = catchAsync(async (req, res, next) => {
 });
 
 // Get all user investements
-export const getUserInvestments = catchAsync(async (req, res, next) => {
-  const userId = req.user._id;
+// export const getUserInvestments = catchAsync(async (req, res, next) => {
+//   const userId = req.user._id;
 
-  // Find user and populate investments
-  const user = await User.findById(userId).populate("investments");
-  if (!user) {
-    return res.status(404).json({ status: "fail", message: "User not found" });
-  }
+//   // Find user and populate investments
+//   const user = await User.findById(userId).populate("investments");
+//   if (!user) {
+//     return res.status(404).json({ status: "fail", message: "User not found" });
+//   }
 
-  res.status(200).json({
-    status: "success",
-    data: user.investments,
-  });
-});
+//   res.status(200).json({
+//     status: "success",
+//     data: user.investments,
+//   });
+// });
 
 // Get all user investements
 export const getAllInvestments = catchAsync(async (req, res, next) => {
@@ -132,12 +132,11 @@ export const updateInvestment = updateOne(Investment);
 
 // Get a single transaction for a partcular user
 export const getInvestment = catchAsync(async (req, res, next) => {
-  const { userId, investmentId } = req.params;
-
+  const userId = req.user._id;
+  console.log("some user", userId);
   // Ensure the investment belongs to the user
-  const investment = await Investment.findOne({
-    _id: investmentId,
-    user: userId,
+  const investment = await Investment.find({
+    userId: userId,
   }).populate(["addOns", "oneOffs"]);
 
   if (!investment) {

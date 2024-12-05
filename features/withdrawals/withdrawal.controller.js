@@ -10,7 +10,7 @@ export const createWithdrawal = catchAsync(async (req, res, next) => {
   const { user, amount } = req.body; // Extract userId and withdrawal amount from the request body
 
   // Step 1: Fetch the user's investment details
-  const investment = await Investment.findOne({ user });
+  const investment = await Investment.findOne({ userId: user });
 
   if (!investment) {
     return next(new AppError("Investment not found for this user.", 404)); // Handle case when investment is not found

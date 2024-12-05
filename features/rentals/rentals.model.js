@@ -38,19 +38,17 @@ const rentalsSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    mandate: {
+
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
+    agreements: {
       type: Array,
       default: [],
     },
-    certificate: {
-      type: Array,
-      default: [],
-    },
-    partnerForm: {
-      type: Array,
-      default: [],
-    },
-    checklist: {
+    others: {
       type: Array,
       default: [],
     },

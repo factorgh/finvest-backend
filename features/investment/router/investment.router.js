@@ -4,7 +4,7 @@ import {
   createInvestment,
   deleteInvestment,
   getAllInvestments,
-  getUserInvestments,
+  getInvestment,
   updateInvestment,
 } from "../controller/investment.controller.js";
 
@@ -16,6 +16,6 @@ router.post("/", createInvestment);
 // router.get("/:id", getOne);
 router.put("/single/:id", updateInvestment);
 router.delete("/single/:id", deleteInvestment);
-router.get("/user", verifyToken, getUserInvestments);
+router.get("/user", verifyToken, getInvestment);
 
 export default router;

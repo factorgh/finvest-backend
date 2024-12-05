@@ -25,6 +25,7 @@ import notificationRouter from "./features/notifications/routes/notification.js"
 import paymentRouter from "./features/payments/payments.route.js";
 import rentalRouter from "./features/rentals/rentals.route.js";
 import withdrawalRouter from "./features/withdrawals/withdrawal.route.js";
+import firebaseUpload from "./utils/firebase/firebase.uploads.js";
 
 // Check if con scheduling works properly
 cron.schedule("* * * * *", () => {
@@ -98,6 +99,9 @@ app.use("/api/v1/loans", loanRouter);
 app.use("/api/v1/rentals", rentalRouter);
 app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/withdrawals", withdrawalRouter);
+
+// File uploads routes
+app.use("/api/v1/uploads", firebaseUpload);
 
 // Aseets routes
 app.use("/api/v1/assets", assetsRoute);
