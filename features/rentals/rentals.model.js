@@ -30,10 +30,7 @@ const rentalsSchema = new mongoose.Schema(
       required: true,
       enum: ["Q1", "Q2", "Q3", "Q4"],
     },
-    overdueDate: {
-      type: Date,
-      required: true,
-    },
+
     returnDate: {
       type: Date,
       required: true,
