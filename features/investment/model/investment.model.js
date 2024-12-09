@@ -29,6 +29,10 @@ const InvestmentSchema = new mongoose.Schema(
       max: [100, "Rate cannot exceed 100"],
       default: 8,
     },
+    startDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+    },
     addOns: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -78,6 +82,11 @@ const InvestmentSchema = new mongoose.Schema(
       ref: "Investment",
     },
     managementFee: { type: Number, default: 0, min: [0, "Cannot be negative"] },
+    managementFeeRate: {
+      type: Number,
+      default: 0,
+      min: [0, "Cannot be negative"],
+    },
     performanceYield: {
       type: Number,
       default: 0,
@@ -87,6 +96,7 @@ const InvestmentSchema = new mongoose.Schema(
     checklist: { type: Array, default: [], unique: true },
     mandate: { type: Array, default: [], unique: true },
     partnerForm: { type: Array, default: [], unique: true },
+    others: { type: Array, default: [], unique: true },
     lastModified: { type: Date, default: Date.now },
   },
   {

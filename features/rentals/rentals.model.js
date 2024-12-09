@@ -13,7 +13,7 @@ const rentalsSchema = new mongoose.Schema(
     },
 
     assetDesignation: {
-      type: Number,
+      type: String,
       required: true,
     },
 
@@ -21,9 +21,12 @@ const rentalsSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    overdueRate: {
+    overdueFee: {
       type: Number,
       required: true,
+    },
+    overdueDays: {
+      type: Number,
     },
     quater: {
       type: String,

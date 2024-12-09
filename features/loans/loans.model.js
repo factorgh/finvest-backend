@@ -16,6 +16,10 @@ const LoanSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    overdueFee: {
+      type: Number,
+      default: 0,
+    },
     loanRate: {
       type: Number,
       required: true,
@@ -26,14 +30,18 @@ const LoanSchema = new mongoose.Schema(
     },
     amountDue: {
       type: Number,
+      default: 0,
     },
-
+    overdueDays: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["Active", "Inactive"],
       default: "Active",
     },
-    overdueDate: {
+    dueDate: {
       type: Date,
       required: true,
     },

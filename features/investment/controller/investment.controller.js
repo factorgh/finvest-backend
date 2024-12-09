@@ -1,5 +1,8 @@
 import { generateTransactionId } from "../../../utils/halper.js";
-import { getQuarterEndDate } from "../../../utils/handle_date_range.js";
+import {
+  getQuarter,
+  getQuarterEndDate,
+} from "../../../utils/handle_date_range.js";
 import { calculateDynamicAccruedReturn } from "../../../utils/handle_dynamic_rate.js";
 import User from "../../auth/models/user.model.js";
 import catchAsync from "../../error/catch-async-error.js";

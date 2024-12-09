@@ -15,9 +15,12 @@ const AssetsSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-
-    assetDesignation: {
+    assetValue: {
       type: Number,
+      required: true,
+    },
+    assetDesignation: {
+      type: String,
       required: true,
     },
     accruedInterest: {
@@ -29,6 +32,9 @@ const AssetsSchema = new mongoose.Schema(
       required: true,
     },
     managementFee: {
+      type: Number,
+    },
+    managementFeeRate: {
       type: Number,
       required: true,
     },

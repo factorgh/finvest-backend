@@ -28,12 +28,12 @@ export const getQuarterEndDate = (date) => {
   return dayjs(new Date(year, quarterEndMonth + 1, 0)); // Last day of the quarter
 };
 
-const getQuarter = (date = new Date()) => {
+export const getQuarter = (date = new Date()) => {
   const quarter = Math.ceil((date.getMonth() + 1) / 3);
   return `${date.getFullYear()}-Q${quarter}`;
 };
 
-const isQuarterEnd = (date = new Date()) => {
+export const isQuarterEnd = (date = new Date()) => {
   const month = date.getMonth() + 1;
   return (
     month % 3 === 0 &&

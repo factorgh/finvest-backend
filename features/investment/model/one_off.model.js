@@ -22,6 +22,12 @@ const OneOffSchema = new mongoose.Schema(
       min: [0, "Rate cannot be negative"],
       max: [100, "Rate cannot exceed 100"],
     },
+    yield: {
+      type: Number,
+      required: [true, "Yield is required"],
+      min: [0, "Yield cannot be negative"],
+      max: [100, "Yield cannot exceed 100"],
+    },
   },
   {
     timestamps: true,

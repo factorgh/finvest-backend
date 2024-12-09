@@ -25,11 +25,23 @@ import notificationRouter from "./features/notifications/routes/notification.js"
 import paymentRouter from "./features/payments/payments.route.js";
 import rentalRouter from "./features/rentals/rentals.route.js";
 import withdrawalRouter from "./features/withdrawals/withdrawal.route.js";
+import dailyLoanDeductions from "./utils/loan-cron.js";
+import dailyRentalUpdates from "./utils/rental-cron.js";
+import dailyAccruedReturnJob from "./utils/schedule_cron_jobs.js";
 
 // Check if con scheduling works properly
 cron.schedule("* * * * *", () => {
   console.log("Running a task every day at midnight");
 });
+
+// Cron job for daily accrued returns
+dailyAccruedReturnJob();
+
+// Cron job loans
+dailyLoanDeductions();
+
+// Cron job rentals
+dailyRentalUpdates();
 
 dotenv.config();
 
