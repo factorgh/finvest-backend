@@ -71,6 +71,15 @@ const AssetsSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
+    status: {
+      type: String,
+      enum: ["Active", "Inactive"],
+      default: "Active",
+    },
+    deduction: {
+      type: Number,
+      default: 0,
+    },
     active: {
       type: Boolean,
       default: true,

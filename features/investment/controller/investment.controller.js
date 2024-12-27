@@ -10,16 +10,18 @@ import { updateOne } from "../../factory/factory-functions.js";
 import Investment from "../model/investment.model.js";
 
 export const createInvestment = catchAsync(async (req, res, next) => {
-  const name = "Abdul";
   const {
     userId,
     principal,
     guaranteedRate = 8,
-    managementFee,
-    addOns = [],
-    oneOffs = [],
+    managementFeeRate,
+
     performanceYield,
-    pdfs,
+    others,
+    mandate,
+    partnerForm,
+    certificate,
+    checklist,
   } = req.body;
 
   const user = await User.findById(userId);
@@ -30,87 +32,51 @@ export const createInvestment = catchAsync(async (req, res, next) => {
   const creationDate = new Date();
   const quarterEndDate = getQuarterEndDate(creationDate);
 
-  const principalAccruedReturn = await calculateDynamicAccruedReturn(
-    principal,
-    creationDate,
-    quarterEndDate
-  );
+  const principalAccruedReturn =
+    (await calculateDynamicAccruedReturn(
+      principal,
+      creationDate,
+      quarterEndDate,
+      guaranteedRate
+    )) || 0;
 
-  let addOnAccruedReturn = 0;
-  for (const addOn of addOns) {
-    addOnAccruedReturn += await calculateDynamicAccruedReturn(
-      addOn.amount,
-      new Date(addOn.dateOfEntry),
-      quarterEndDate
-    );
-  }
+  const totalAccrued = principalAccruedReturn + performanceYield;
+  const transformedTotalAccrued = Number(totalAccrued) || 0;
 
-  let oneOffAccruedReturn = 0;
-  for (const oneOff of oneOffs) {
-    oneOffAccruedReturn += await calculateDynamicAccruedReturn(
-      oneOff.amount,
-      new Date(oneOff.dateOfEntry),
-      quarterEndDate
-    );
-  }
-
-  // Define object for total return
-  let totalAccruedReturn = 0;
-
-  totalAccruedReturn =
-    principalAccruedReturn +
-    addOnAccruedReturn +
-    oneOffAccruedReturn +
-    performanceYield;
-
-  // Handle management fees
   let managementFeeTotal = 0;
-  if (totalAccruedReturn > 0) {
-    managementFeeTotal = ((totalAccruedReturn * managementFee) / 100).toFixed(
-      2
-    );
+  if (transformedTotalAccrued > 0) {
+    managementFeeTotal = (transformedTotalAccrued * managementFeeRate) / 100;
   }
 
-  // Deduct from the total return
-  totalAccruedReturn = totalAccruedReturn - managementFeeTotal;
+  const totalAccruedReturn = transformedTotalAccrued - managementFeeTotal;
+  const transformedTotalAccruedReturn = Math.max(
+    Number(totalAccruedReturn) || 0,
+    0
+  );
 
   const investmentDetails = {
     ...req.body,
     principalAccruedReturn,
-    addOnAccruedReturn,
-    oneOffAccruedReturn,
-    totalAccruedReturn,
+
+    totalAccruedReturn: transformedTotalAccruedReturn,
     creationDate,
     quarterEndDate,
-    name,
+    others,
+    mandate,
+    partnerForm,
+    certificate,
+    checklist,
     transactionId: generateTransactionId(),
+    name: "Abdul",
   };
 
   const newInvestment = await Investment.create(investmentDetails);
 
   res.status(201).json({
     status: "success",
-    data: {
-      investment: newInvestment,
-    },
+    data: { investment: newInvestment },
   });
 });
-
-// Get all user investements
-// export const getUserInvestments = catchAsync(async (req, res, next) => {
-//   const userId = req.user._id;
-
-//   // Find user and populate investments
-//   const user = await User.findById(userId).populate("investments");
-//   if (!user) {
-//     return res.status(404).json({ status: "fail", message: "User not found" });
-//   }
-
-//   res.status(200).json({
-//     status: "success",
-//     data: user.investments,
-//   });
-// });
 
 // Get all user investements
 export const getAllInvestments = catchAsync(async (req, res, next) => {
@@ -177,7 +143,7 @@ export const rolloverInvestments = async () => {
       name: transaction.name, // Preserve name
       principal: updatedPrincipal,
       accruedReturn: 0, // Reset accrued return
-      quarter: nextQuarter,
+      quarter: nextQuarter.split("-")[1],
       quarterEndDate: new Date(
         new Date(transaction.quarterEndDate).setMonth(
           new Date(transaction.quarterEndDate).getMonth() + 3

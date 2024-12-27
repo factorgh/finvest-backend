@@ -22,6 +22,9 @@ const AddOnSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    startDate: {
+      type: Date,
+    },
 
     rate: {
       type: Number,

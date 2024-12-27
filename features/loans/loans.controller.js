@@ -1,10 +1,5 @@
 import catchAsync from "../error/catch-async-error.js";
-import {
-  createOne,
-  deleteOne,
-  getOne,
-  updateOne,
-} from "../factory/factory-functions.js";
+import { deleteOne, getOne, updateOne } from "../factory/factory-functions.js";
 
 import LoanModel from "./loans.model.js";
 const popOptions = {
@@ -12,7 +7,26 @@ const popOptions = {
   select: "name email", // Specify the fields you want to retrieve for the 'user' (name and email)
 };
 
-export const createLoan = createOne(LoanModel);
+// export const createLoan = createOne(LoanModel);
+export const createLoan = catchAsync(async (req, res, next) => {
+  const { LoanAmount, loanRate, ...otherFields } = req.body;
+  const loanFee = (LoanAmount * loanRate) / 100;
+  const amountDue = LoanAmount + loanFee;
+
+  const doc = new LoanModel({
+    ...otherFields,
+    amountDue,
+  });
+
+  await doc.save();
+  res.status(201).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
+
 export const deleteLoan = deleteOne(LoanModel);
 export const updateLoan = updateOne(LoanModel);
 // export const getAllLoans = getAll(LoanModel, popOptions);

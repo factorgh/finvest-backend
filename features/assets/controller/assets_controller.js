@@ -1,6 +1,5 @@
 import catchAsync from "../../error/catch-async-error.js";
 import {
-  createOne,
   deleteOne,
   getAll,
   getOne,
@@ -9,7 +8,30 @@ import {
 
 import AssetsModel from "../model/assets_model.js";
 
-export const createAsset = createOne(AssetsModel);
+// export const createAsset = createOne(AssetsModel);
+
+export const createAsset = catchAsync(async (req, res, next) => {
+  // Extract the fields from the request body excluding accruedInterest and managementFee
+  const { accruedInterest, managementFee, ...otherFields } = req.body;
+  const deduction = accruedInterest - managementFee;
+
+  const doc = new AssetsModel({
+    ...otherFields,
+    accruedInterest,
+    managementFee,
+    deduction,
+  });
+
+  await doc.save();
+
+  res.status(201).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
+
 export const deleteAsset = deleteOne(AssetsModel);
 export const updateAsset = updateOne(AssetsModel);
 export const getAllAssets = getAll(AssetsModel);
