@@ -20,7 +20,7 @@ router.delete("/deleteMe", verifyToken, deleteMe);
 
 // OTHER routes
 
-router.put("/update/:id", updateUser);
-router.delete("/delete/:id", deleteUser);
+router.put("/single/:id", updateUser);
+router.delete("/single/:id", deleteUser);
 
 export default router;
