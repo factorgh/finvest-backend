@@ -13,7 +13,7 @@ import {
 } from "./handle_date_range.js";
 
 const dailyAccruedReturnJob = () => {
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
     console.log("Starting daily update for accrued returns...");
 
     try {
