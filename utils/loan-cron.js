@@ -17,7 +17,7 @@ const calculateOverdueFee = (amount, rate, daysElapsed) => {
 };
 
 const dailyLoanDeductions = () => {
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
     // Execute every minute (adjust to "0 0 * * *" for daily)
     console.log("Starting daily update for overdue loans...");
 

@@ -64,7 +64,11 @@ const app = express();
 app.use(helmet());
 
 // Cross site request middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: "https://lynchpinglobal-client-v1.vercel.app",
+  })
+);
 // LOGGGER
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10kb" })); // Parses JSON requests
