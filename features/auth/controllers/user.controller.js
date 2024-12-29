@@ -55,3 +55,39 @@ export const getAllAdmin = catchAsync(async (req, res, next) => {
     users,
   });
 });
+
+export const getUser = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.params.id);
+  res.status(200).json({
+    status: "success",
+    user,
+  });
+});
+
+// Delete a user
+export const deleteUser = catchAsync(async (req, res, next) => {
+  await User.findByIdAndDelete(req.params.id);
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
+
+// Update a user
+export const updateUser = catchAsync(async (req, res, next) => {
+  // const filteredBody = filteredObj(req.body, "name", "email", "role");
+  const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  res.status(200).json({
+    status: "success",
+    updatedUser,
+  });
+});
+
+// export const getMe = (req, res, next) => {
+//   req.params.id = req.user.id;
+//   next();
+// };

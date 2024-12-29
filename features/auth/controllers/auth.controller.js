@@ -38,6 +38,7 @@ export const signup = catchAsync(async (req, res, next) => {
   const newUser = await User.create({
     name: req.body.name,
     email: req.body.email,
+    displayName: req.body.displayName,
     password: req.body.password,
     passwordConfirm: req.body.passwordConfirm,
   });
@@ -48,14 +49,20 @@ export const signup = catchAsync(async (req, res, next) => {
 // Handle login
 export const login = catchAsync(async (req, res, next) => {
   // Check if email and password exist
-  const { email, password } = req.body;
+  const { identifier, password } = req.body;
 
-  if (!email || !password) {
+  if (!identifier || !password) {
     return next(new AppError("Please provide email and password!", 400));
   }
 
+  const user = identifier.includes("@")
+    ? await User.findOne({ email: identifier }).select("+password")
+    : await User.findOne({ username: identifier }).select("+password");
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
   // Check if the user exists and paasword correct
-  const user = await User.findOne({ email }).select("+password");
 
   console.log("user", user);
 

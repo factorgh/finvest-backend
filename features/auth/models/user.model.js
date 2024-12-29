@@ -8,13 +8,10 @@ const userSchema = new mongoose.Schema({
     required: [true, "Please provide your name"],
     unique: true,
   },
-  // email: {
-  //   type: String,
-  //   required: [true, "Email is required"],
-  //   lowercase: true,
-  //   unique: true,
-  //   validate: [validator.isEmail, "Please provide a valid email"],
-  // },
+  displayName: {
+    type: String,
+    unique: true,
+  },
   email: {
     type: String,
     required: [true, "Email is required"],
@@ -48,7 +45,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     default: function () {
-      return `FV-${Math.floor(100000 + Math.random() * 900000)}`;
+      return `CL-${Math.floor(1000000 + Math.random() * 900000)}`;
     },
   },
   password: {
