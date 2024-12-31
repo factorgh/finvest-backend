@@ -2,78 +2,81 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, "Please provide your name"],
-    unique: true,
-  },
-  displayName: {
-    type: String,
-    unique: true,
-  },
-  email: {
-    type: String,
-    required: [true, "Email is required"],
-    trim: true,
-    lowercase: true,
-    unique: true,
-    validate: {
-      validator: function (value) {
-        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+const userSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: [true, "Please provide your name"],
+      unique: true,
+    },
+    displayName: {
+      type: String,
+      unique: true,
+    },
+    email: {
+      type: String,
+      required: [true, "Email is required"],
+      trim: true,
+      lowercase: true,
+      unique: true,
+      validate: {
+        validator: function (value) {
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+        },
+        message: (props) => `${props.value} is not a valid email!`,
       },
-      message: (props) => `${props.value} is not a valid email!`,
     },
-  },
-  phone: {
-    type: String,
-    // required: [true, "Phone number is required"],
-    validate: {
-      validator: function (value) {
-        return /^[0-9]{10,15}$/.test(value);
+    phone: {
+      type: String,
+      // required: [true, "Phone number is required"],
+      validate: {
+        validator: function (value) {
+          return /^[0-9]{10,15}$/.test(value);
+        },
+        message: (props) => `${props.value} is not a valid phone number!`,
       },
-      message: (props) => `${props.value} is not a valid phone number!`,
     },
-  },
-  photo: String,
-  role: {
-    type: String,
-    enum: ["user", "admin"],
-    default: "user",
-  },
-  license: {
-    type: String,
-    unique: true,
-    default: function () {
-      return `CL-${Math.floor(1000000 + Math.random() * 900000)}`;
+    photo: String,
+    role: {
+      type: String,
+      enum: ["user", "admin"],
+      default: "user",
     },
-  },
-  password: {
-    type: String,
-    required: [true, "Please provide a password"],
-    minlength: 8,
-    select: false,
-  },
-  passwordConfirm: {
-    type: String,
-    required: [true, "Please confirm your password"],
-    validate: {
-      // Use a regular function here to access `this`
-      validator: function (el) {
-        return el === this.password;
+    license: {
+      type: String,
+      unique: true,
+      default: function () {
+        return `CL-${Math.floor(1000000 + Math.random() * 900000)}`;
       },
-      message: "Passwords do not match",
+    },
+    password: {
+      type: String,
+      required: [true, "Please provide a password"],
+      minlength: 8,
+      select: false,
+    },
+    passwordConfirm: {
+      type: String,
+      required: [true, "Please confirm your password"],
+      validate: {
+        // Use a regular function here to access `this`
+        validator: function (el) {
+          return el === this.password;
+        },
+        message: "Passwords do not match",
+      },
+    },
+    passwordChangedAt: Date,
+    passwordResetExpiresIn: Date,
+    passwordResetToken: String,
+    active: {
+      type: Boolean,
+      default: true,
+      select: false,
     },
   },
-  passwordChangedAt: Date,
-  passwordResetExpiresIn: Date,
-  passwordResetToken: String,
-  active: {
-    type: Boolean,
-    default: true,
-    select: false,
-  },
-});
+  { timestamps: true }
+);
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {

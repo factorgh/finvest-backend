@@ -66,7 +66,7 @@ app.use(helmet());
 // Cross site request middleware
 app.use(
   cors({
-    origin: "https://lynchpinglobal-client-v1.vercel.app",
+    // origin: "https://lynchpinglobal-client-v1.vercel.app",
   })
 );
 // LOGGGER
