@@ -23,7 +23,6 @@ const rentalsSchema = new mongoose.Schema(
     },
     overdueFee: {
       type: Number,
-      required: true,
     },
     overdueDays: {
       type: Number,
@@ -38,7 +37,6 @@ const rentalsSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-
     status: {
       type: String,
       enum: ["Active", "Inactive"],
