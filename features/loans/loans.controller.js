@@ -9,12 +9,16 @@ const popOptions = {
 
 // export const createLoan = createOne(LoanModel);
 export const createLoan = catchAsync(async (req, res, next) => {
-  const { LoanAmount, loanRate, ...otherFields } = req.body;
-  const loanFee = (LoanAmount * loanRate) / 100;
-  const amountDue = LoanAmount + loanFee;
+  console.log(req.body);
+  const { loanAmount, loanRate, ...otherFields } = req.body;
+
+  const loanFee = (loanAmount * loanRate) / 100;
+  const amountDue = loanAmount + loanFee;
 
   const doc = new LoanModel({
     ...otherFields,
+    loanAmount,
+    loanRate,
     amountDue,
   });
 

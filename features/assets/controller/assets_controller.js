@@ -1,7 +1,6 @@
 import catchAsync from "../../error/catch-async-error.js";
 import {
   deleteOne,
-  getAll,
   getOne,
   updateOne,
 } from "../../factory/factory-functions.js";
@@ -34,7 +33,16 @@ export const createAsset = catchAsync(async (req, res, next) => {
 
 export const deleteAsset = deleteOne(AssetsModel);
 export const updateAsset = updateOne(AssetsModel);
-export const getAllAssets = getAll(AssetsModel);
+export const getAllAssets = catchAsync(async (req, res, next) => {
+  const doc = await AssetsModel.find().populate("user");
+  res.status(200).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
+
 export const getAsset = getOne(AssetsModel);
 
 export const getAssetByUser = catchAsync(async (req, res, next) => {

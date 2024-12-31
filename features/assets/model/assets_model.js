@@ -34,10 +34,7 @@ const AssetsSchema = new mongoose.Schema(
     managementFee: {
       type: Number,
     },
-    managementFeeRate: {
-      type: Number,
-      required: true,
-    },
+
     quater: {
       type: String,
       required: true,
