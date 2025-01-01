@@ -14,7 +14,7 @@ const InvestmentSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: [true, "Name is required"],
+
       trim: true,
     },
     principal: {
@@ -92,11 +92,11 @@ const InvestmentSchema = new mongoose.Schema(
       default: 0,
       min: [0, "Cannot be negative"],
     },
-    certificate: { type: Array, default: [], unique: true },
-    checklist: { type: Array, default: [], unique: true },
-    mandate: { type: Array, default: [], unique: true },
-    partnerForm: { type: Array, default: [], unique: true },
-    others: { type: Array, default: [], unique: true },
+    certificate: { type: Array, default: [] },
+    checklist: { type: Array, default: [] },
+    mandate: { type: Array, default: [] },
+    partnerForm: { type: Array, default: [] },
+    others: { type: Array, default: [] },
     lastModified: { type: Date, default: Date.now },
   },
   {

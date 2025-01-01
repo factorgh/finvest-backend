@@ -1,9 +1,6 @@
 import moment from "moment";
 import cron from "node-cron";
-import {
-  archiveTransactions,
-  rolloverInvestments,
-} from "../features/investment/controller/investment.controller.js";
+import { archiveTransactions } from "../features/investment/controller/investment.controller.js";
 import Investment from "../features/investment/model/investment.model.js";
 import JobStatus from "../features/investment/model/job_status.model.js";
 import {
@@ -12,8 +9,12 @@ import {
   getQuarterEndDate,
 } from "./handle_date_range.js";
 
+const calculateDailyAddOnAccruedReturn = (amount, guaranteedRate) => {
+  return (amount * guaranteedRate) / 100;
+};
+
 const dailyAccruedReturnJob = () => {
-  cron.schedule("0 0 * * *", async () => {
+  cron.schedule("* * * * *", async () => {
     console.log("Starting daily update for accrued returns...");
 
     try {
@@ -40,6 +41,10 @@ const dailyAccruedReturnJob = () => {
       console.log(`Last run date: ${lastRunDate}`);
       console.log(`Days missed: ${daysMissed}`);
 
+      console.log(
+        "(1)------------------------------JOB STATUS SECTION END---------------------------"
+      );
+
       // Ensure at least one day's calculation occurs
       const daysToProcess = daysMissed <= 0 ? 1 : daysMissed;
 
@@ -51,38 +56,43 @@ const dailyAccruedReturnJob = () => {
           "addOns"
         );
         console.log(`Found ${investments.length} active investments`);
+        console.log(
+          "(2)------------------------------ACTIVE INVESTMENTS END---------------------------"
+        );
 
         for (const investment of investments) {
-          console.log("(1)-----------------------Invesetment:", investment);
-          console.log(`Processing investment ID: ${investment._id}`);
+          console.log(
+            `(3)Processing investment ID-------------------------------------------------: ${investment._id}`
+          );
 
           try {
             const quarterEndDate = getQuarterEndDate(investment.startDate);
             console.log(`Quarter end date: ${quarterEndDate}`);
-            console.log("(2)------------------------targetDate", targetDate);
+            console.log("(4)------------------------targetDate", targetDate);
 
             if (moment(targetDate).isSameOrAfter(quarterEndDate, "day")) {
               console.log(
-                `Quarter has ended for investment ID: ${investment._id}`
+                `Condition true: Quarter has ended for investment ID: ${investment._id}.`
               );
+              console.log(
+                `targetDate: ${targetDate}, quarterEndDate: ${quarterEndDate}`
+              );
+
               await archiveTransactions();
-              await rolloverInvestments(investment, quarterEndDate);
+              // await rolloverInvestments(investment, quarterEndDate);
 
               // Proceed to log or handle quarter-end-specific logic but do not exit this investment loop.
               console.log(
                 `Quarter rollover completed for investment ${investment._id}. Continuing updates...`
               );
+            } else {
+              console.log(
+                `Condition false: Quarter has not ended for investment ID: ${investment._id}.`
+              );
+              console.log(
+                `targetDate: ${targetDate}, quarterEndDate: ${quarterEndDate}`
+              );
             }
-
-            // Date passed to days for principal calculations
-            console.log(
-              "(3)------------------------investment date ------------------------",
-              investment.startDate
-            );
-            console.log(
-              "(4)------------------------quarterEndDate",
-              quarterEndDate
-            );
 
             // Calculate principal accrued return
             const daysForPrincipal = calculateDays(
@@ -100,48 +110,38 @@ const dailyAccruedReturnJob = () => {
               `Principal accrued return for investment ID ${investment._id}: ${principalAccruedReturn}`
             );
 
+            // const addOnAccruedReturn += investment.addOnAccruedReturn;
+
             // Calculate add-on accrued return
-            const addOnAccruedReturn = investment.addOns.reduce(
-              (total, addOn) => {
-                console.log(
-                  `Processing addOn for investment ID: ${investment._id}`,
-                  addOn
-                );
+            let totalAddOnAccruedReturn = investment.addOnAccruedReturn || 0;
 
-                if (!addOn.amount || !addOn.startDate) {
-                  console.warn(
-                    `Invalid addOn found in investment ${investment._id}. Skipping.`,
-                    addOn
-                  );
-                  return total;
-                }
+            for (const addOn of investment.addOns) {
+              console.log(
+                `Processing add-on: ${addOn.name} for investment ID: ${investment._id}`
+              );
 
-                const daysForAddOn = calculateDays(
-                  addOn.startDate,
-                  Math.min(targetDate, quarterEndDate)
-                );
-                console.log(`Days for addOn: ${daysForAddOn}`);
+              // Calculate the daily return for the add-on
+              const dailyAddOnReturn = calculateDailyAddOnAccruedReturn(
+                addOn.amount,
+                investment.guaranteedRate
+              );
 
-                const accruedReturn = calculateAccruedReturn(
-                  addOn.amount,
-                  investment.guaranteedRate,
-                  daysForAddOn
-                );
-                console.log(`Accrued return for addOn: ${accruedReturn}`);
+              console.log(
+                `Calculated daily return for add-on: ${addOn.name}, Amount: ${addOn.amount}, Rate: ${addOn.guaranteedRate}, Daily Return: ${dailyAddOnReturn}`
+              );
 
-                return total + accruedReturn;
-              },
-              0
-            );
+              // Accumulate the total add-on accrued return
+              totalAddOnAccruedReturn += dailyAddOnReturn;
+            }
 
             console.log(
-              `Total add-on accrued return for investment ID ${investment._id}: ${addOnAccruedReturn}`
+              `Total add-on accrued return for investment ID ${investment._id}: ${totalAddOnAccruedReturn} `
             );
 
             // Update investment
             investment.totalAccruedReturn +=
-              principalAccruedReturn + addOnAccruedReturn;
-            investment.addOnAccruedReturn += addOnAccruedReturn;
+              principalAccruedReturn + totalAddOnAccruedReturn;
+            investment.addOnAccruedReturn += totalAddOnAccruedReturn;
             await investment.save();
             console.log(`Investment ${investment._id} updated successfully.`);
           } catch (error) {

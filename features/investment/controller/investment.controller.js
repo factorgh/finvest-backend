@@ -124,85 +124,120 @@ export const getInvestment = catchAsync(async (req, res, next) => {
 // Investment Rollovers
 export const rolloverInvestments = async () => {
   const currentQuarter = getQuarter();
+
+  const updatedQuarter = currentQuarter.split("-")[1];
+  console.log(`Updated quarter extracted: ${updatedQuarter}`);
+
   const nextQuarter = getQuarter(
     new Date(new Date().setMonth(new Date().getMonth() + 3))
   );
 
-  // Find archived transactions for the current quarter
-  const archivedTransactions = await Investment.find({
-    quarter: currentQuarter,
-    archived: true,
-  });
-
-  for (const transaction of archivedTransactions) {
-    const updatedPrincipal = transaction.principal + transaction.accruedReturn;
-
-    // Create a new transaction for the next quarter
-    const newTransaction = await Investment.create({
-      userId: transaction.userId,
-      name: transaction.name, // Preserve name
-      principal: updatedPrincipal,
-      accruedReturn: 0, // Reset accrued return
-      quarter: nextQuarter.split("-")[1],
-      quarterEndDate: new Date(
-        new Date(transaction.quarterEndDate).setMonth(
-          new Date(transaction.quarterEndDate).getMonth() + 3
-        )
-      ),
-      archived: false,
-      active: true,
-      previousTransactionId: transaction._id, // Link to the archived transaction
+  try {
+    // Find archived transactions for the current quarter
+    const archivedTransactions = await Investment.find({
+      quarter: updatedQuarter,
+      archived: true,
     });
+    console.log(
+      `Archived transactions found for current quarter: ${currentQuarter}`
+    );
 
     console.log(
-      `New transaction created for user ${transaction.userId} for ${nextQuarter} with ID ${newTransaction._id}`
+      `Rollover started for current quarter: ${currentQuarter} and next quarter: ${nextQuarter}`
     );
-  }
 
-  console.log("Rollover complete for current quarter:", currentQuarter);
+    console.log("Archived transactions:", archivedTransactions);
+
+    for (const transaction of archivedTransactions) {
+      console.log(
+        `Processing archived transaction for user ${transaction.userId} with ID ${transaction._id}`
+      );
+
+      // Calculate new principal
+      const updatedPrincipal =
+        transaction.principal + transaction.totalAccruedReturn;
+
+      // Create a new transaction for the next quarter
+      const newTransaction = await Investment.create({
+        userId: transaction.userId,
+        name: transaction.name, // Preserve name
+        principal: updatedPrincipal,
+        accruedReturn: 0, // Reset accrued return
+        quarter: nextQuarter.split("-")[1],
+        transactionId: generateTransactionId(),
+        startDate: new Date(), // Corrected startDate
+        quarterEndDate: new Date(
+          new Date(transaction.quarterEndDate).setMonth(
+            new Date(transaction.quarterEndDate).getMonth() + 3
+          )
+        ),
+        archived: false,
+        active: true,
+        mandate: transaction.mandate,
+        partnerForm: transaction.partnerForm,
+        certificate: transaction.certificate,
+        checklist: transaction.checklist,
+        addOns: [],
+        oneOffs: [],
+        previousTransactionId: transaction._id, // Link to the archived transaction
+      });
+
+      console.log(
+        `New transaction created for user ${transaction.userId} for ${nextQuarter} with ID ${newTransaction._id}`
+      );
+    }
+
+    console.log("Rollover complete for current quarter:", currentQuarter);
+  } catch (error) {
+    console.error("Error during rollover process:", error.message || error);
+    throw new Error("Rollover process failed");
+  }
 };
 
 // Archiving of investors
 export const archiveTransactions = async () => {
   const currentQuarter = getQuarter();
+  console.log(
+    `---------------------------------CURRENT QUARTER: ${currentQuarter}`
+  );
+
+  const updatedQuarter = currentQuarter.split("-")[1];
+  console.log(`Updated quarter extracted: ${updatedQuarter}`);
 
   try {
-    // Bulk update: Mark all transactions for the current quarter as archived
-    const result = await Investment.updateMany(
-      { quarter: currentQuarter, archived: false },
-      { $set: { archived: true, active: false } } // Set both archived and inactive
-    );
+    // Ensure there are no mismatches in quarter formatting or archived field state
+    const query = { quarter: updatedQuarter, archived: false };
+    console.log(`Query:`, query);
+
+    const result = await Investment.updateMany(query, {
+      $set: { archived: true, active: false },
+    });
 
     console.log(
-      `Archived ${result.nModified} transactions for quarter ${currentQuarter}`
+      `---------------------------------ARCHIVED TRANSACTIONS --------------------------------`
     );
+    console.log(`Matched ${result.matchedCount} transactions`);
+    console.log(`Modified ${result.modifiedCount} transactions`);
 
-    // Optionally, move to ArchivedTransaction model
-    /*
-    const transactionsToArchive = await Investment.find({ quarter: currentQuarter, archived: true });
-    for (const transaction of transactionsToArchive) {
-      await ArchivedTransaction.create({ ...transaction.toObject() });
+    if (result.matchedCount === 0) {
+      console.warn(
+        `No transactions matched for quarter ${updatedQuarter}. Check your data.`
+      );
+    } else if (result.modifiedCount === 0) {
+      console.warn(
+        `Transactions were matched but not updated. This could indicate no active transactions for the quarter.`
+      );
+    } else {
+      console.log(
+        `Successfully archived ${result.modifiedCount} transactions for quarter ${currentQuarter}`
+      );
     }
-    */
   } catch (error) {
     console.error("Error archiving transactions:", error);
     throw new Error("Failed to archive transactions");
   }
 };
 
-// const archiveTransactions = async (currentQuarter) => {
-//   console.log(`Archiving transactions for quarter: ${currentQuarter}`);
-
-//   // Update transactions to mark them as archived
-//   const result = await Investment.updateMany(
-//     { quarter: currentQuarter, archived: false, active: true },
-//     { $set: { archived: true, active: false } }
-//   );
-
-//   console.log(
-//     `Archived ${result.nModified} transactions for quarter ${currentQuarter}`
-//   );
-// };
 export const deleteInvestment = catchAsync(async (req, res, nex) => {
   const { id } = req.params;
   const investment = await Investment.findByIdAndDelete(id);
