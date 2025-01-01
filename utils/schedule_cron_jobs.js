@@ -17,7 +17,7 @@ const calculateDailyAddOnAccruedReturn = (amount, guaranteedRate) => {
 };
 
 const dailyAccruedReturnJob = () => {
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 0 * * *", async () => {
     console.log("Starting daily update for accrued returns...");
 
     try {
