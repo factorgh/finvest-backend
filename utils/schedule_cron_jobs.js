@@ -1,6 +1,5 @@
 import moment from "moment";
 import cron from "node-cron";
-import { archiveTransactions } from "../features/investment/controller/investment.controller.js";
 import Investment from "../features/investment/model/investment.model.js";
 import JobStatus from "../features/investment/model/job_status.model.js";
 import {
@@ -78,7 +77,7 @@ const dailyAccruedReturnJob = () => {
                 `targetDate: ${targetDate}, quarterEndDate: ${quarterEndDate}`
               );
 
-              await archiveTransactions();
+              // await archiveTransactions();
               // await rolloverInvestments(investment, quarterEndDate);
 
               // Proceed to log or handle quarter-end-specific logic but do not exit this investment loop.
