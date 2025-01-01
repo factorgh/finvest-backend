@@ -5,7 +5,7 @@ const router = express.Router();
 
 // investment routes
 // router.get("/", getAll);
-router.post("/:investmentId", addOneOffsToInvestment);
+router.post("/", addOneOffsToInvestment);
 // router.get("/:id", getOne);
 // router.patch("/:id", updateOne);
 // router.delete("/:id", deleteOne);

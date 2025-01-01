@@ -16,17 +16,15 @@ const OneOffSchema = new mongoose.Schema(
     currency: {
       type: String,
     },
-    rate: {
-      type: Number,
-      required: [true, "Rate is required"],
-      min: [0, "Rate cannot be negative"],
-      max: [100, "Rate cannot exceed 100"],
-    },
-    yield: {
+    // rate: {
+    //   type: Number,
+    //   required: [true, "Rate is required"],
+    //   min: [0, "Rate cannot be negative"],
+    //   max: [100, "Rate cannot exceed 100"],
+    // },
+    oneOffYield: {
       type: Number,
       required: [true, "Yield is required"],
-      min: [0, "Yield cannot be negative"],
-      max: [100, "Yield cannot exceed 100"],
     },
   },
   {
