@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import moment from "moment";
 
 // Calculate the accrued return
 export const calculateAccruedReturn = (principal, rate, days) => {
@@ -44,18 +45,35 @@ export const calculateDays = (startDate, endDate) => {
 };
 
 // Get the end of the quarter for a given date
+// export const getQuarterEndDate = (date) => {
+//   console.log("Calculating quarter end...", date);
+//   const currentDate = dayjs(date);
+//   const month = currentDate.month(); // 0-indexed
+//   const year = currentDate.year();
+
+//   // Determine the quarter-end month (0-indexed: Feb, May, Aug, Nov)
+//   let quarterEndMonth = 2; // Default to Q1
+//   if (month >= 3 && month <= 5) quarterEndMonth = 5; // Q2
+//   else if (month >= 6 && month <= 8) quarterEndMonth = 8; // Q3
+//   else if (month >= 9 && month <= 11) quarterEndMonth = 11; // Q4
+
+//   // Create the last day of the quarter
+//   return dayjs(new Date(year, quarterEndMonth + 1, 0)); // Last day of the quarter
+// };
 export const getQuarterEndDate = (date) => {
-  const currentDate = dayjs(date);
-  const month = currentDate.month();
-  const year = currentDate.year();
+  const currentDate = moment(date);
+  const month = currentDate.month(); // 0-based index
 
-  // Determine the quarter-end month
-  let quarterEndMonth = 2; // Default to Q1
-  if (month >= 3 && month <= 5) quarterEndMonth = 5; // Q2
-  if (month >= 6 && month <= 8) quarterEndMonth = 8; // Q3
-  if (month >= 9 && month <= 11) quarterEndMonth = 11; // Q4
+  // Calculate quarter-end month (Feb = 2, May = 5, Aug = 8, Nov = 11)
+  const quarterEndMonth = Math.floor(month / 3) * 3 + 2; // Finds last month of the quarter
 
-  return dayjs(new Date(year, quarterEndMonth + 1, 0)); // Last day of the quarter
+  // Get the last day of the calculated quarter-end month
+  const quarterEndDate = moment()
+    .year(currentDate.year())
+    .month(quarterEndMonth)
+    .endOf("month"); // Last day of the month
+
+  return quarterEndDate;
 };
 
 export const getQuarter = (date = new Date()) => {

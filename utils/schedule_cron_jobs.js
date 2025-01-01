@@ -1,5 +1,9 @@
 import moment from "moment";
 import cron from "node-cron";
+import {
+  archiveTransactions,
+  rolloverInvestments,
+} from "../features/investment/controller/investment.controller.js";
 import Investment from "../features/investment/model/investment.model.js";
 import JobStatus from "../features/investment/model/job_status.model.js";
 import {
@@ -66,33 +70,28 @@ const dailyAccruedReturnJob = () => {
 
           try {
             const quarterEndDate = getQuarterEndDate(investment.startDate);
-            console.log(`Quarter end date: ${quarterEndDate}`);
-            console.log("(4)------------------------targetDate", targetDate);
+            const normalizedTargetDate = moment(targetDate).startOf("day");
+            const normalizedQuarterEndDate =
+              moment(quarterEndDate).startOf("day");
 
-            if (moment(targetDate).isSameOrAfter(quarterEndDate, "day")) {
+            if (normalizedTargetDate >= normalizedQuarterEndDate) {
+              console.log(`Condition true: Archiving`);
               console.log(
-                `Condition true: Quarter has ended for investment ID: ${investment._id}.`
-              );
-              console.log(
-                `targetDate: ${targetDate}, quarterEndDate: ${quarterEndDate}`
+                `targetDate: ${normalizedTargetDate}, quarterEndDate: ${normalizedQuarterEndDate}`
               );
 
-              // await archiveTransactions();
-              // await rolloverInvestments(investment, quarterEndDate);
+              await archiveTransactions();
+              await rolloverInvestments(investment, quarterEndDate);
 
-              // Proceed to log or handle quarter-end-specific logic but do not exit this investment loop.
               console.log(
                 `Quarter rollover completed for investment ${investment._id}. Continuing updates...`
               );
             } else {
+              console.log(`Condition false: Not yet`);
               console.log(
-                `Condition false: Quarter has not ended for investment ID: ${investment._id}.`
-              );
-              console.log(
-                `targetDate: ${targetDate}, quarterEndDate: ${quarterEndDate}`
+                `targetDate: ${normalizedTargetDate}, quarterEndDate: ${normalizedQuarterEndDate}`
               );
             }
-
             // Calculate principal accrued return
             const daysForPrincipal = calculateDays(
               investment.startDate,
