@@ -14,7 +14,6 @@ const InvestmentSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-
       trim: true,
     },
     principal: {
