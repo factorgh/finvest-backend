@@ -26,6 +26,14 @@ const OneOffSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Yield is required"],
     },
+    startDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+    },
+    endDate: {
+      type: Date,
+      required: [true, "Start date is required"],
+    },
   },
   {
     timestamps: true,
