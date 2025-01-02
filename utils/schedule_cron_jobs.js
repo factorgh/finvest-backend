@@ -15,6 +15,9 @@ import {
 const calculateDailyAddOnAccruedReturn = (amount, guaranteedRate) => {
   return (amount * guaranteedRate) / 100;
 };
+const calculateDailyTotalAccruedReturn = (amount, guaranteedRate) => {
+  return (amount * guaranteedRate) / 100;
+};
 
 const dailyAccruedReturnJob = () => {
   cron.schedule("0 0 * * *", async () => {
@@ -137,8 +140,10 @@ const dailyAccruedReturnJob = () => {
             );
 
             // Update investment
-            investment.totalAccruedReturn +=
-              principalAccruedReturn + totalAddOnAccruedReturn;
+            investment.totalAccruedReturn += calculateDailyTotalAccruedReturn(
+              investment.principal,
+              investment.guaranteedRate
+            );
             investment.addOnAccruedReturn += totalAddOnAccruedReturn;
             await investment.save();
             console.log(`Investment ${investment._id} updated successfully.`);

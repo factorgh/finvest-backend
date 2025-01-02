@@ -16,6 +16,7 @@ export const addAddOnToInvestment = async (req, res, next) => {
       amount,
       rate: investment.guaranteedRate,
       dateOfEntry: Date.now(),
+      status,
     };
     // Create addon
     const savedAddOn = await AddOn.create(newAddOn);
