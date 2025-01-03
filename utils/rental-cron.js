@@ -17,7 +17,7 @@ const calculateOverdueFee = (amount, dailyRate, daysElapsed) => {
 };
 
 const dailyRentalUpdates = () => {
-  cron.schedule("0 0 * * *", async () => {
+  cron.schedule("0 6 * * *", async () => {
     console.log("Starting daily updates for rentals...");
 
     try {
