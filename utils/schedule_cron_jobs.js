@@ -147,11 +147,22 @@ const dailyAccruedReturnJob = () => {
               );
 
               // Update investment
-              investment.totalAccruedReturn += calculateDailyTotalAccruedReturn(
-                investment.principal,
-                investment.guaranteedRate
-              );
+              investment.principalAccruedReturn +=
+                calculateDailyTotalAccruedReturn(
+                  investment.principal,
+                  investment.guaranteedRate
+                );
               investment.addOnAccruedReturn += totalAddOnAccruedReturn;
+
+              // Calculate total accrued return for the investment
+              investment.totalAccruedReturn =
+                investment.principalAccruedReturn +
+                investment.addOnAccruedReturn;
+
+              // Caclculate management fee on daily bases
+              investment.managementFee =
+                (investment.managementFeeRate * investment.totalAccruedReturn) /
+                100;
               await investment.save();
               console.log(`Investment ${investment._id} updated successfully.`);
             } catch (error) {

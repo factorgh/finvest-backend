@@ -31,6 +31,9 @@ const AssetsSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    startDate: {
+      type: Date,
+    },
     managementFee: {
       type: Number,
     },
