@@ -57,7 +57,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
   const investmentDetails = {
     ...req.body,
     principalAccruedReturn,
-
+    managementFee: managementFeeTotal,
     totalAccruedReturn: transformedTotalAccruedReturn,
     creationDate,
     quarterEndDate,
