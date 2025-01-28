@@ -21,7 +21,8 @@ const calculateDailyTotalAccruedReturn = (amount, guaranteedRate) => {
 
 const dailyAccruedReturnJob = () => {
   cron.schedule(
-    "0 6 * * *",
+    // "0 8 * * *",
+    "30 19 * * *",
     async () => {
       console.log(
         `[${moment().format()}] Starting daily update for accrued returns...`
@@ -147,17 +148,22 @@ const dailyAccruedReturnJob = () => {
               );
 
               // Update investment
-              investment.principalAccruedReturn +=
-                calculateDailyTotalAccruedReturn(
-                  investment.principal,
-                  investment.guaranteedRate
-                );
+              const principalReturn = calculateDailyTotalAccruedReturn(
+                investment.principal,
+                investment.guaranteedRate
+              );
               investment.addOnAccruedReturn += totalAddOnAccruedReturn;
 
               // Calculate total accrued return for the investment
-              investment.totalAccruedReturn =
-                investment.principalAccruedReturn +
-                investment.addOnAccruedReturn;
+              investment.totalAccruedReturn +=
+                principalReturn + totalAddOnAccruedReturn;
+
+              console.log(
+                "-----------------------------------------------------"
+              );
+
+              investment.principalAccruedReturn += principalReturn;
+              investment.addOnAccruedReturn += totalAddOnAccruedReturn;
 
               // Caclculate management fee on daily bases
               investment.managementFee =
