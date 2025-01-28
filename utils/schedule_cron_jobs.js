@@ -18,7 +18,7 @@ const calculateDailyTotalAccruedReturn = (amount, guaranteedRate) => {
 const dailyAccruedReturnJob = () => {
   cron.schedule(
     // "0 8 * * *",
-    "30 20 * * *",
+    "35 20 * * *",
     async () => {
       console.log(
         `[${moment().format()}] Starting daily update for accrued returns...`
@@ -45,7 +45,7 @@ const dailyAccruedReturnJob = () => {
         }
 
         const lastRunDate = jobStatus.lastRun;
-        console.log("Last Run Date:", lastRun);
+
         const daysMissed = moment(currentDate).diff(
           moment(lastRunDate),
           "days"
