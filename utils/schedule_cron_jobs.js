@@ -6,11 +6,7 @@ import {
 } from "../features/investment/controller/investment.controller.js";
 import Investment from "../features/investment/model/investment.model.js";
 import JobStatus from "../features/investment/model/job_status.model.js";
-import {
-  calculateAccruedReturn,
-  calculateDays,
-  getQuarterEndDate,
-} from "./handle_date_range.js";
+import { getQuarterEndDate } from "./handle_date_range.js";
 
 const calculateDailyAddOnAccruedReturn = (amount, guaranteedRate) => {
   return (amount * guaranteedRate) / 100;
@@ -22,13 +18,14 @@ const calculateDailyTotalAccruedReturn = (amount, guaranteedRate) => {
 const dailyAccruedReturnJob = () => {
   cron.schedule(
     // "0 8 * * *",
-    "30 19 * * *",
+    "30 20 * * *",
     async () => {
       console.log(
         `[${moment().format()}] Starting daily update for accrued returns...`
       );
 
       try {
+        // GET THE CURRENT DATA AND ALSO JOB THAT HAS ALREADY RUN
         const currentDate = new Date();
         const jobName = "dailyAccruedReturn";
 
@@ -48,12 +45,15 @@ const dailyAccruedReturnJob = () => {
         }
 
         const lastRunDate = jobStatus.lastRun;
+        console.log("Last Run Date:", lastRun);
         const daysMissed = moment(currentDate).diff(
           moment(lastRunDate),
           "days"
         );
         console.log(`Last run date: ${lastRunDate}`);
-        console.log(`Days missed: ${daysMissed}`);
+        console.log(
+          `----------------------------------------------------Days missed: ${daysMissed}`
+        );
 
         console.log(
           "(1)------------------------------JOB STATUS SECTION END---------------------------"
@@ -61,6 +61,9 @@ const dailyAccruedReturnJob = () => {
 
         // Ensure at least one day's calculation occurs
         const daysToProcess = daysMissed <= 0 ? 1 : daysMissed;
+        console.log(
+          `----------------------------------------------------------(*)Days to process: ${daysToProcess}`
+        );
 
         for (let i = 1; i <= daysToProcess; i++) {
           const targetDate = moment(lastRunDate).add(i, "days").toDate();
@@ -103,25 +106,7 @@ const dailyAccruedReturnJob = () => {
                   `targetDate: ${normalizedTargetDate}, quarterEndDate: ${normalizedQuarterEndDate}`
                 );
               }
-              // Calculate principal accrued return
-              const daysForPrincipal = calculateDays(
-                investment.startDate,
-                Math.min(targetDate, quarterEndDate)
-              );
-              console.log(`Days for principal: ${daysForPrincipal}`);
 
-              const principalAccruedReturn = calculateAccruedReturn(
-                investment.principal,
-                investment.guaranteedRate,
-                daysForPrincipal
-              );
-              console.log(
-                `Principal accrued return for investment ID ${investment._id}: ${principalAccruedReturn}`
-              );
-
-              // const addOnAccruedReturn += investment.addOnAccruedReturn;
-
-              // Calculate add-on accrued return
               let totalAddOnAccruedReturn = investment.addOnAccruedReturn || 0;
 
               for (const addOn of investment.addOns) {
@@ -148,10 +133,20 @@ const dailyAccruedReturnJob = () => {
               );
 
               // Update investment
-              const principalReturn = calculateDailyTotalAccruedReturn(
-                investment.principal,
-                investment.guaranteedRate
+              // const principalReturn = calculateDailyTotalAccruedReturn(
+              //   investment.principal,
+              //   investment.guaranteedRate
+              // );
+
+              console.log(
+                "(*)------------------------------INVESTMENT SECTION START---------------------------"
               );
+              let principalReturn;
+              if (daysMissed) {
+                // Get days missed and multiply days missed by expected return and add it to the total investment
+                principalReturn =
+                  investment.expectedReturnHolder * Number(daysMissed);
+              }
               investment.addOnAccruedReturn += totalAddOnAccruedReturn;
 
               // Calculate total accrued return for the investment

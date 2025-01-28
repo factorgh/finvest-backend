@@ -28,6 +28,7 @@ const InvestmentSchema = new mongoose.Schema(
       max: [100, "Rate cannot exceed 100"],
       default: 8,
     },
+    expectedReturnHolder: Number,
     startDate: {
       type: Date,
       required: [true, "Start date is required"],

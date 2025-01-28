@@ -6,7 +6,6 @@ import {
 import { calculateDynamicAccruedReturn } from "../../../utils/handle_dynamic_rate.js";
 import User from "../../auth/models/user.model.js";
 import catchAsync from "../../error/catch-async-error.js";
-import { updateOne } from "../../factory/factory-functions.js";
 import Investment from "../model/investment.model.js";
 
 export const createInvestment = catchAsync(async (req, res, next) => {
@@ -29,6 +28,11 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     return res.status(404).json({ status: "fail", message: "User not found" });
   }
 
+  // Daily accrued Return
+  const dailyRate = guaranteedRate / 100;
+  const CalculatedDailyAmount = dailyRate * principal;
+
+  // End of daily amount
   const creationDate = new Date();
   const quarterEndDate = getQuarterEndDate(creationDate);
 
@@ -61,6 +65,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     totalAccruedReturn: transformedTotalAccruedReturn,
     creationDate,
     quarterEndDate,
+    expectedReturnHolder: CalculatedDailyAmount,
     others,
     mandate,
     partnerForm,
@@ -97,7 +102,50 @@ export const getAllInvestments = catchAsync(async (req, res, next) => {
 });
 
 // Update investment
-export const updateInvestment = updateOne(Investment);
+
+export const updateInvestment = catchAsync(async (req, res, next) => {
+  const investmentId = req.params.id;
+
+  // Fetch the investment
+  const investment = await Investment.findById(investmentId);
+  if (!investment) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Investment not found",
+    });
+  }
+
+  // Check if performanceYield needs to be updated
+  // if (investment.performanceYield === 0) {
+  //   if (typeof req.body.performanceYield !== "number") {
+  //     return res.status(400).json({
+  //       status: "fail",
+  //       message: "Invalid or missing performanceYield",
+  //     });
+  //   }
+
+  // Update performanceYield and totalAccruedReturn
+  if (
+    typeof performanceYield === "number" &&
+    investment.performanceYield === 0
+  ) {
+    investment.performanceYield = performanceYield;
+    investment.totalAccruedReturn += performanceYield;
+  }
+
+  // Update any other fields in the investment
+  Object.assign(investment, otherUpdates);
+
+  await investment.save(); // Save only once after all updates
+
+  res.status(200).json({
+    status: "success",
+    message: "Investment updated successfully",
+    data: {
+      investment,
+    },
+  });
+});
 
 // Get a single transaction for a partcular user
 export const getInvestment = catchAsync(async (req, res, next) => {
