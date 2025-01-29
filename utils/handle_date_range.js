@@ -88,3 +88,38 @@ export const isQuarterEnd = (date = new Date()) => {
     date.getDate() === new Date(date.getFullYear(), month, 0).getDate()
   );
 };
+
+// Get quarter days
+// export const getQuarterDetails = (date = new Date()) => {
+//   const year = date.getFullYear();
+//   const quarter = Math.ceil((date.getMonth() + 1) / 3);
+
+//   // Calculate the start and end dates of the quarter
+//   const startMonth = (quarter - 1) * 3; // 0 for Q1, 3 for Q2, 6 for Q3, 9 for Q4
+//   const startDate = new Date(year, startMonth, 1);
+//   const endDate = new Date(year, startMonth + 3, 0); // Last day of the quarter
+
+//   // Get the total number of days in the quarter
+//   const daysInQuarter = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
+
+//   return {
+//     quarter: `${year}-Q${quarter}`,
+//     daysInQuarter,
+//     startDate: startDate.toISOString().split("T")[0], // Optional, formatted as YYYY-MM-DD
+//     endDate: endDate.toISOString().split("T")[0],     // Optional, formatted as YYYY-MM-DD
+//   };
+// };
+export const getQuarterDetails = (date = new Date()) => {
+  const year = date.getFullYear();
+  const quarter = Math.ceil((date.getMonth() + 1) / 3);
+
+  // Calculate the start and end dates of the quarter
+  const startMonth = (quarter - 1) * 3; // 0 for Q1, 3 for Q2, 6 for Q3, 9 for Q4
+  const startDate = new Date(year, startMonth, 1);
+  const endDate = new Date(year, startMonth + 3, 0); // Last day of the quarter
+
+  // Get the total number of days in the quarter
+  const daysInQuarter = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
+
+  return daysInQuarter;
+};
