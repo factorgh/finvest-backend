@@ -237,7 +237,7 @@ const dailyAccruedReturnJob = () => {
         );
 
         const principalTotalReturn = daysDiff * dailyReturn;
-        totalPrincipalReturn += principalTotalReturn; // Accumulate total
+        totalPrincipalReturn = principalTotalReturn; // Accumulate total
         invest.principalAccruedReturn += principalTotalReturn;
 
         for (const addOn of invest.addOns) {
@@ -248,7 +248,7 @@ const dailyAccruedReturnJob = () => {
               invest.guaranteedRate,
               daysInQuarter
             );
-            totalAddOnReturn += dailyAddOnReturn;
+            totalAddOnReturn = daysDiff * dailyAddOnReturn;
             invest.addOnAccruedReturn += dailyAddOnReturn;
             await invest.save();
           }
