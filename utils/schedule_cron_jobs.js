@@ -205,7 +205,10 @@ const dailyAccruedReturnJob = () => {
       let totalAccruedReturn = 0;
 
       // Get all active investments in the system
-      const investments = await Investment.find();
+      const investments = await Investment.find().populate([
+        "addOns",
+        "oneOffs",
+      ]);
       console.log(`Found ${investments.length} active investments`);
 
       const currentDate = new Date();
@@ -247,25 +250,32 @@ const dailyAccruedReturnJob = () => {
           console.log(
             "---------------------------------------All ADD ONS---------------------------------------"
           );
-          console.log(`Add-on ID: ${addOn._id}`);
+          console.log(`Add-on ID: ${addOn}`);
 
           console.log(`Add-on Amount: ${addOn.amount}`);
 
           // Check if the addOn has a status of active
           if (addOn.status === "active") {
+            console.log(
+              "---------------------------------------Active ADD ONS MAKE UP---------------------------------------"
+            );
+            console.log(addOn.amount);
+            console.log(`Guaranteed Rate: ${addOn.guaranteedRate}`);
+            console.log(`Days in quarter: ${daysInQuarter}`);
+
             const dailyAddOnReturn = calculateDailyRate(
               addOn.amount,
-              addOn.guaranteedRate,
+              invest.guaranteedRate,
               daysInQuarter
             );
-            totalAddOnReturn += dailyAddOnReturn; // Accumulate total
-            console.log(
-              `Calculated daily return for add-on: ${addOn.name}, Amount: ${addOn.amount}, Rate: ${addOn.guaranteedRate}, Daily Return: ${dailyAddOnReturn}`
-            );
+            console.log(`Daily Add-on Return: ${dailyAddOnReturn}`);
+            totalAddOnReturn += dailyAddOnReturn;
           }
         }
+        const investCalc =
+          principalTotalReturn + totalAddOnReturn + invest.performanceYiled;
+        invest.totalAccruedReturn = Math.floor(investCalc);
 
-        invest.totalAccruedReturn = principalTotalReturn + totalAddOnReturn;
         console.log(
           "-------------------------------------total investment return---------------------------------"
         );
@@ -273,13 +283,13 @@ const dailyAccruedReturnJob = () => {
         await invest.save();
       }
 
-      totalAccruedReturn = totalPrincipalReturn + totalAddOnReturn;
+      // totalAccruedReturn = totalPrincipalReturn + totalAddOnReturn;
 
-      console.log(`Total Principal Return: ${totalPrincipalReturn}`);
-      console.log(`Total Add-On Return: ${totalAddOnReturn}`);
-      console.log(`Total Accrued Return: ${totalAccruedReturn}`);
+      // console.log(`Total Principal Return: ${totalPrincipalReturn}`);
+      // console.log(`Total Add-On Return: ${totalAddOnReturn}`);
+      // console.log(`Total Accrued Return: ${totalAccruedReturn}`);
     } catch (error) {
-      console.error("Error calculating daily returns:", error);
+      console.error("Error calculating daily returns:", error.message);
     }
   });
 };
