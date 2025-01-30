@@ -242,7 +242,30 @@ const dailyAccruedReturnJob = () => {
         console.log(`Daily Return: ${dailyReturn}`);
 
         // Calculate add-on return
-        invest.totalAccruedReturn = principalTotalReturn;
+
+        for (const addOn of invest.addOns) {
+          console.log(
+            "---------------------------------------All ADD ONS---------------------------------------"
+          );
+          console.log(`Add-on ID: ${addOn._id}`);
+
+          console.log(`Add-on Amount: ${addOn.amount}`);
+
+          // Check if the addOn has a status of active
+          if (addOn.status === "active") {
+            const dailyAddOnReturn = calculateDailyRate(
+              addOn.amount,
+              addOn.guaranteedRate,
+              daysInQuarter
+            );
+            totalAddOnReturn += dailyAddOnReturn; // Accumulate total
+            console.log(
+              `Calculated daily return for add-on: ${addOn.name}, Amount: ${addOn.amount}, Rate: ${addOn.guaranteedRate}, Daily Return: ${dailyAddOnReturn}`
+            );
+          }
+        }
+
+        invest.totalAccruedReturn = principalTotalReturn + totalAddOnReturn;
         console.log(
           "-------------------------------------total investment return---------------------------------"
         );
