@@ -8,3 +8,5 @@ export const calculateDailyRate = (principal, expectedRate, quarterDays) => {
   const returnValue = (principal * expectedRate) / 100 / quarterDays;
   return returnValue;
 };
+
+export const calulcateManagementFee = () => {};

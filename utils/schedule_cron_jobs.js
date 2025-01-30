@@ -238,56 +238,32 @@ const dailyAccruedReturnJob = () => {
 
         const principalTotalReturn = daysDiff * dailyReturn;
         totalPrincipalReturn += principalTotalReturn; // Accumulate total
-
-        // Logging details for debugging
-        console.log(`Investment ID: ${invest._id}`);
-        console.log(`Principal Total Return: ${principalTotalReturn}`);
-        console.log(`Daily Return: ${dailyReturn}`);
-
-        // Calculate add-on return
+        invest.principalAccruedReturn += principalTotalReturn;
 
         for (const addOn of invest.addOns) {
-          console.log(
-            "---------------------------------------All ADD ONS---------------------------------------"
-          );
-          console.log(`Add-on ID: ${addOn}`);
-
-          console.log(`Add-on Amount: ${addOn.amount}`);
-
           // Check if the addOn has a status of active
           if (addOn.status === "active") {
-            console.log(
-              "---------------------------------------Active ADD ONS MAKE UP---------------------------------------"
-            );
-            console.log(addOn.amount);
-            console.log(`Guaranteed Rate: ${addOn.guaranteedRate}`);
-            console.log(`Days in quarter: ${daysInQuarter}`);
-
             const dailyAddOnReturn = calculateDailyRate(
               addOn.amount,
               invest.guaranteedRate,
               daysInQuarter
             );
-            console.log(`Daily Add-on Return: ${dailyAddOnReturn}`);
             totalAddOnReturn += dailyAddOnReturn;
+            invest.addOnAccruedReturn += dailyAddOnReturn;
+            await invest.save();
           }
         }
-        const investCalc =
-          principalTotalReturn + totalAddOnReturn + invest.performanceYiled;
-        invest.totalAccruedReturn = Math.floor(investCalc);
 
-        console.log(
-          "-------------------------------------total investment return---------------------------------"
-        );
+        console.log("----------------------------------------------");
+        invest.totalAccruedReturn =
+          principalTotalReturn + totalAddOnReturn + invest.performanceYield;
+
+        // Calculations for management fees
+
+        console.log(invest.addOnAccruedReturn);
         console.log(invest.totalAccruedReturn);
         await invest.save();
       }
-
-      // totalAccruedReturn = totalPrincipalReturn + totalAddOnReturn;
-
-      // console.log(`Total Principal Return: ${totalPrincipalReturn}`);
-      // console.log(`Total Add-On Return: ${totalAddOnReturn}`);
-      // console.log(`Total Accrued Return: ${totalAccruedReturn}`);
     } catch (error) {
       console.error("Error calculating daily returns:", error.message);
     }
