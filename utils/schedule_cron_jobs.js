@@ -248,7 +248,12 @@ const dailyAccruedReturnJob = () => {
               invest.guaranteedRate,
               daysInQuarter
             );
-            totalAddOnReturn = daysDiff * dailyAddOnReturn;
+
+            const addOnDays = moment(addOn.createdAt).diff(
+              moment(firstJanuary),
+              "days"
+            );
+            totalAddOnReturn = addOnDays * dailyAddOnReturn;
             invest.addOnAccruedReturn += dailyAddOnReturn;
             await invest.save();
           }
