@@ -264,6 +264,10 @@ const dailyAccruedReturnJob = () => {
             invest.managementFeeRate) /
           100;
         invest.managementFee = managementFee;
+        console.log(
+          "-----------------------------mnagement fee rate -----------------"
+        );
+        console.log(invest.managementFee);
 
         console.log(invest.addOnAccruedReturn);
         console.log(invest.totalAccruedReturn);
