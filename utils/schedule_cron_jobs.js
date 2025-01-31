@@ -238,7 +238,7 @@ const dailyAccruedReturnJob = () => {
 
         const principalTotalReturn = daysDiff * dailyReturn;
         totalPrincipalReturn = principalTotalReturn; // Accumulate total
-        invest.principalAccruedReturn += principalTotalReturn;
+        invest.principalAccruedReturn = principalTotalReturn;
 
         for (const addOn of invest.addOns) {
           // Check if the addOn has a status of active
