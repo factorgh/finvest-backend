@@ -237,7 +237,7 @@ const dailyAccruedReturnJob = () => {
         );
 
         const principalTotalReturn = daysDiff * dailyReturn;
-        totalPrincipalReturn = principalTotalReturn; // Accumulate total
+        totalPrincipalReturn = principalTotalReturn;
         invest.principalAccruedReturn = principalTotalReturn;
 
         for (const addOn of invest.addOns) {
@@ -249,12 +249,15 @@ const dailyAccruedReturnJob = () => {
               daysInQuarter
             );
 
-            const addOnDays = moment(addOn.createdAt).diff(
+            const addOnDays = moment(addOn.dateOfEntry).diff(
               moment(firstJanuary),
               "days"
             );
+            console.log(`Add-on days: ${addOnDays}`);
             totalAddOnReturn = addOnDays * dailyAddOnReturn;
-            invest.addOnAccruedReturn += dailyAddOnReturn;
+            console.log(`Add-on daily return: ${dailyAddOnReturn}`);
+            invest.addOnAccruedReturn = totalAddOnReturn;
+            console.log(`Add-on accrued return: ${totalAddOnReturn}`);
             await invest.save();
           }
         }
@@ -269,13 +272,6 @@ const dailyAccruedReturnJob = () => {
             invest.managementFeeRate) /
           100;
         invest.managementFee = managementFee;
-        console.log(
-          "-----------------------------mnagement fee rate -----------------"
-        );
-        console.log(invest.managementFee);
-
-        console.log(invest.addOnAccruedReturn);
-        console.log(invest.totalAccruedReturn);
         await invest.save();
       }
     } catch (error) {
