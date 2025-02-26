@@ -14,7 +14,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     principal,
     guaranteedRate = 8,
     managementFeeRate,
-
+    operationalCost,
     performanceYield,
     others,
     mandate,
@@ -66,6 +66,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     creationDate,
     quarterEndDate,
     expectedReturnHolder: CalculatedDailyAmount,
+    operationalCost,
     others,
     mandate,
     partnerForm,
@@ -105,9 +106,18 @@ export const getAllInvestments = catchAsync(async (req, res, next) => {
 
 export const updateInvestment = catchAsync(async (req, res, next) => {
   const investmentId = req.params.id;
+  const updateData = req.body;
 
-  // Fetch the investment
-  const investment = await Investment.findById(investmentId);
+  // Update the investment and return the updated document
+  const investment = await Investment.findByIdAndUpdate(
+    investmentId,
+    updateData,
+    {
+      new: true, // Return the updated document
+      runValidators: true, // Ensure validation rules are applied
+    }
+  );
+
   if (!investment) {
     return res.status(404).json({
       status: "fail",
@@ -115,35 +125,10 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
     });
   }
 
-  // Check if performanceYield needs to be updated
-  // if (investment.performanceYield === 0) {
-  //   if (typeof req.body.performanceYield !== "number") {
-  //     return res.status(400).json({
-  //       status: "fail",
-  //       message: "Invalid or missing performanceYield",
-  //     });
-  //   }
-
-  // Update performanceYield and totalAccruedReturn
-  if (
-    typeof performanceYield === "number" &&
-    investment.performanceYield === 0
-  ) {
-    investment.performanceYield = performanceYield;
-    investment.totalAccruedReturn += performanceYield;
-  }
-
-  // Update any other fields in the investment
-  Object.assign(investment, otherUpdates);
-
-  await investment.save(); // Save only once after all updates
-
   res.status(200).json({
     status: "success",
     message: "Investment updated successfully",
-    data: {
-      investment,
-    },
+    data: { investment },
   });
 });
 

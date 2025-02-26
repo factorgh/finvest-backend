@@ -16,6 +16,7 @@ export const addAddOnToInvestment = async (req, res, next) => {
       amount,
       rate: investment.guaranteedRate,
       dateOfEntry: Date.now(),
+      startDate: new Date(),
       status,
     };
     // Create addon
@@ -36,7 +37,7 @@ export const addAddOnToInvestment = async (req, res, next) => {
 // Update add on Status
 export const updateAddOnStatus = async (req, res, next) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status,startDate } = req.body;
   try {
     const addOn = await AddOn.findById(id);
     if (!addOn) {
@@ -45,6 +46,7 @@ export const updateAddOnStatus = async (req, res, next) => {
         .json({ status: "fail", message: "Add on not found" });
     }
     addOn.status = status;
+    addOn.startDate = startDate;
     await addOn.save();
     res.status(200).json({ status: "success", data: addOn });
   } catch (error) {
