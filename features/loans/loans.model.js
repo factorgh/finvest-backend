@@ -14,6 +14,7 @@ const LoanSchema = new mongoose.Schema(
     },
     overdueRate: {
       type: Number,
+      default: 0,
       required: true,
     },
     overdueFee: {
