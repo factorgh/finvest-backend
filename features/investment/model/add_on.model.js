@@ -25,10 +25,7 @@ const AddOnSchema = new mongoose.Schema(
     startDate: {
       type: Date,
     },
-    accruedAddOnInterest:{
-      type: Number,
-      default: 0,
-    },
+
     rate: {
       type: Number,
       required: [true, "Rate is required"],
