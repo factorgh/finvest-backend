@@ -3,11 +3,10 @@ import Investment from "../features/investment/model/investment.model.js";
 import { calculateDailyRate } from "./halper.js";
 import { getQuarterDetails } from "./handle_date_range.js";
 
-
 import moment from "moment";
 
 const dailyAccruedReturnJob = () => {
-  cron.schedule("* * * * *", async () => {
+  cron.schedule("0 6 * * *", async () => {
     console.log(
       "---------------------- Calculating daily return on principal ----------------------"
     );
@@ -26,9 +25,9 @@ const dailyAccruedReturnJob = () => {
 
       const currentDate = new Date();
 
-// Iterate over each investment
+      // Iterate over each investment
       for (const invest of investments) {
-    // Check if the investment has a status of active
+        // Check if the investment has a status of active
         const daysDiff = moment(currentDate).diff(
           moment(invest.startDate),
           "days"
@@ -39,7 +38,6 @@ const dailyAccruedReturnJob = () => {
         const daysInQuarter = getQuarterDetails();
         console.log(`Days in quarter: ${daysInQuarter}`);
 
-        
         // Calculate daily return value
         const dailyReturn = calculateDailyRate(
           invest.principal,
@@ -47,13 +45,13 @@ const dailyAccruedReturnJob = () => {
           daysInQuarter
         );
 
-        console.log(`Daily return------------------------------: ${dailyReturn}`);
+        console.log(
+          `Daily return------------------------------: ${dailyReturn}`
+        );
 
         const principalTotalReturn = daysDiff * dailyReturn;
         totalPrincipalReturn = principalTotalReturn;
         invest.principalAccruedReturn = principalTotalReturn;
-
-        
 
         for (const addOn of invest.addOns) {
           // Check if the addOn has a status of active
@@ -74,26 +72,25 @@ const dailyAccruedReturnJob = () => {
               "days"
             );
             console.log(`Add-on start date: ${addOn.startDate}`);
-            console.log(`AddonReturn: ${dailyAddOnReturn} `)
+            console.log(`AddonReturn: ${dailyAddOnReturn} `);
 
             console.log(`Add-on days: ${addOnDays}`);
             totalAddOnReturn = addOnDays * dailyAddOnReturn;
             addOn.accruedAddOnInterest = totalAddOnReturn;
-            console.log
+            console.log;
             await invest.save();
           }
         }
 
-
         // cALUCLATE THE TOTAL SUM OF ALL THE ADDON ACCRUED RETURN
-         totalAddOnReturn = invest.addOns.reduce(
+        totalAddOnReturn = invest.addOns.reduce(
           (sum, currentValue) => sum + (currentValue.accruedAddOnInterest || 0),
           0
         );
-        
+
         // update the investement addon interest
         invest.addOnAccruedReturn = totalAddOnReturn;
-        
+
         console.log(`Total add-on return: ${totalAddOnReturn}`);
 
         console.log("----------------------------------------------");
