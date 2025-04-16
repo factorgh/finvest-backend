@@ -82,6 +82,11 @@ const InvestmentSchema = new mongoose.Schema(
       ref: "Investment",
     },
     managementFee: { type: Number, default: 0, min: [0, "Cannot be negative"] },
+    operationalCost: {
+      type: Number,
+      default: 0,
+      min: [0, "Cannot be negative"],
+    },
     managementFeeRate: {
       type: Number,
       default: 0,

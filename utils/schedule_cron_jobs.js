@@ -93,16 +93,19 @@ const dailyAccruedReturnJob = () => {
 
         console.log(`Total add-on return: ${totalAddOnReturn}`);
 
-        console.log("----------------------------------------------");
-        invest.totalAccruedReturn =
-          principalTotalReturn + totalAddOnReturn + invest.performanceYield;
-
         // Calculations for management fees
         const managementFee =
           ((principalTotalReturn + totalAddOnReturn) *
             invest.managementFeeRate) /
           100;
         invest.managementFee = managementFee;
+        console.log("----------------------------------------------");
+        invest.totalAccruedReturn =
+          principalTotalReturn +
+          totalAddOnReturn +
+          invest.performanceYield -
+          (managementFee + invest.operationalCost);
+
         await invest.save();
       }
     } catch (error) {
