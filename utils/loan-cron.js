@@ -1,73 +1,62 @@
-import moment from "moment"; // Date library
 import cron from "node-cron";
-import Loan from "../features/loans/loans.model.js"; // Loan model
+import moment from "moment";
+import Loan from "../features/loans/loans.model.js";
 
-// Function to calculate overdue fee
-const calculateOverdueFee = (amount, rate, daysElapsed) => {
-  if (amount <= 0 || rate <= 0 || daysElapsed <= 0) {
-    console.warn("Invalid inputs for overdue fee calculation:", {
-      amount,
-      rate,
-      daysElapsed,
-    });
-    return 0;
-  }
-  return (amount * rate * daysElapsed) / 100;
+/**
+ * Calculates overdue fees based on loan amount, rate, and overdue days.
+ */
+const calculateOverdueFee = (amount, rate, days) => {
+  if (amount <= 0 || rate <= 0 || days <= 0) return 0;
+  return (amount * rate * days) / 100;
 };
 
+/**
+ * Scheduled job to process overdue loans daily at 6 AM.
+ */
 const dailyLoanDeductions = () => {
   cron.schedule("0 6 * * *", async () => {
-    console.log("Starting daily overdue loan processing...");
+    const today = moment().startOf("day").toDate();
+    console.log("[Loan Job] Running overdue loan processor...");
 
     try {
-      const currentDate = moment().startOf("day").toDate();
-
-      // Find all active loans that are overdue
       const overdueLoans = await Loan.find({
         active: true,
-        dueDate: { $gt: currentDate }, // Loans with due dates before today
+        dueDate: { $lt: today }, // Loans due before today
       });
 
-      console.log(`Found ${overdueLoans.length} overdue loans.`);
+      console.log(`[Loan Job] Found ${overdueLoans.length} overdue loan(s).`);
 
       for (const loan of overdueLoans) {
         try {
-          const overdueDays = moment(currentDate).diff(
-            moment(loan.dueDate),
-            "days"
+          const daysOverdue = moment(today).diff(moment(loan.dueDate), "days");
+
+          if (daysOverdue <= 0) continue;
+
+          const rate = loan.overdueRate ?? 0;
+          const overdueFee = calculateOverdueFee(
+            loan.amountDue ?? 0,
+            rate,
+            daysOverdue
           );
 
-          console.log(`Loan ${loan._id} is overdue by ${overdueDays} days.`);
-
-          // Calculate overdue fee
-          // const overdueFee = calculateOverdueFee(
-          //   loan.amountDue || 0,
-          //   loan.overdueRate || 0,
-          //   overdueDays
-          // );
-
-          const overdueFee = overdueDays * loan.overdueRate || 0;
-          console.log(
-            `Calculated overdue fee for loan ${loan._id}: ${overdueFee.toFixed(
-              2
-            )}`
-          );
-
-          // Update loan
-          loan.overdueFee = (loan.overdueFee || 0) + overdueFee;
-          loan.overdueDays = overdueDays;
+          loan.overdueFee = (loan.overdueFee ?? 0) + overdueFee;
+          loan.overdueDays = daysOverdue;
           loan.amountDue += overdueFee;
 
           await loan.save();
-          console.log(`Loan ${loan._id} updated successfully.`);
-        } catch (error) {
-          console.error(`Error updating loan ${loan._id}:`, error);
+          console.log(
+            `[Loan Job] Loan ${
+              loan._id
+            } updated with overdue fee: ${overdueFee.toFixed(2)}`
+          );
+        } catch (err) {
+          console.error(`[Loan Job] Failed to update loan ${loan._id}:`, err);
         }
       }
 
-      console.log("Daily overdue loan update completed successfully.");
-    } catch (error) {
-      console.error("Error during daily loan update:", error);
+      console.log("[Loan Job] Processing complete.");
+    } catch (err) {
+      console.error("[Loan Job] Error fetching overdue loans:", err);
     }
   });
 };
