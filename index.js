@@ -8,7 +8,7 @@ import helmet from "helmet";
 import hpp from "hpp";
 import mongoose from "mongoose";
 import morgan from "morgan";
-import cron from "node-cron";
+
 import xss from "xss-clean";
 import assetsRoute from "./features/assets/route/assets_route.js";
 import authRouter from "./features/auth/routes/auth.route.js";
@@ -28,11 +28,6 @@ import withdrawalRouter from "./features/withdrawals/withdrawal.route.js";
 import dailyLoanDeductions from "./utils/loan-cron.js";
 import dailyRentalUpdates from "./utils/rental-cron.js";
 import dailyAccruedReturnJob from "./utils/schedule_cron_jobs.js";
-
-// Check if con scheduling works properly
-cron.schedule("* * * * *", () => {
-  console.log("Running a task every day at midnight");
-});
 
 // Cron job for daily accrued returns
 dailyAccruedReturnJob();
