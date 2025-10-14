@@ -5,8 +5,10 @@ import { calculateDailyRate } from "./halper.js";
 import { getQuarterDetails } from "./handle_date_range.js";
 
 const dailyAccruedReturnJob = () => {
-  cron.schedule("0 6 * * *", async () => {
-    console.log("[AccruedReturnJob] Starting daily return calculation...");
+  cron.schedule("0 0 * * *", async () => {
+    console.log(
+      "[AccruedReturnJob] Starting daily return calculation at midnight..."
+    );
 
     try {
       const currentDate = moment();
