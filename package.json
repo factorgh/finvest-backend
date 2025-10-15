@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon index.js",
     "start:prod": "NODE_ENV=production nodemon index.js",
-    "build": "npm install"
+    "build": "npm install",
+    "seed:admins": "node scripts/seed_admins.js"
   },
   "keywords": [],
   "author": "",
