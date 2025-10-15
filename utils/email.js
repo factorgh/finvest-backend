@@ -18,7 +18,7 @@ const sendEmail = async (options) => {
 
     // Define the email options
     const mailOptions = {
-      from: '"Library - Email" <no-reply@library.com>',
+      from: '"Lynchping Global - Email" <no-reply@lynchpinglobal.com>',
       to: options.email,
       subject: options.subject,
       text: options.message,
