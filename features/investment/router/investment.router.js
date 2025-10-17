@@ -14,8 +14,8 @@ const router = express.Router();
 router.get("/", getAllInvestments);
 router.post("/", createInvestment);
 // router.get("/:id", getOne);
-router.put("/single/:id", updateInvestment);
-router.delete("/single/:id", deleteInvestment);
+router.put("/single/:id", verifyToken, updateInvestment);
+router.delete("/single/:id", verifyToken, deleteInvestment);
 router.get("/user", verifyToken, getInvestment);
 
 export default router;

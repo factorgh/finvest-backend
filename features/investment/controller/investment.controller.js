@@ -135,8 +135,12 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
       message: "Investment not found",
     });
   }
+  if (!req.user) {
+    return res.status(401).json({ status: "fail", message: "Not authenticated" });
+  }
   const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
-  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(req.user._id));
+  const requesterId = req.user._id;
+  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(requesterId));
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ status: "fail", message: "Not authorized" });
   }
@@ -308,8 +312,12 @@ export const deleteInvestment = catchAsync(async (req, res, nex) => {
       .status(404)
       .json({ status: "fail", message: "Investment not found" });
   }
+  if (!req.user) {
+    return res.status(401).json({ status: "fail", message: "Not authenticated" });
+  }
   const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
-  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(req.user._id));
+  const requesterId = req.user._id;
+  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(requesterId));
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ status: "fail", message: "Not authorized" });
   }
