@@ -27,27 +27,27 @@ async function run() {
     const superadmin = {
       name: "superadmin",
       displayName: "Super Admin",
-      email: "superadmin@lynchpinglobal.com",
-      password: "SuperAdmin@12345",
-      passwordConfirm: "SuperAdmin@12345",
+      email: "Damonosei22@gmail.com",
+      password: "Damon@12345",
+      passwordConfirm: "Damon@12345",
       role: "superadmin",
     };
 
     const admins = [
       {
-        name: "admin1",
-        displayName: "Admin One",
-        email: "admin1@lynchpinglobal.com",
-        password: "Admin@12345",
-        passwordConfirm: "Admin@12345",
+        name: "dannytetteh20",
+        displayName: "Danny Tetteh",
+        email: "dannytetteh20@gmail.com",
+        password: "Danny@12345",
+        passwordConfirm: "Danny@12345",
         role: "admin",
       },
       {
-        name: "admin2",
-        displayName: "Admin Two",
-        email: "admin2@lynchpinglobal.com",
-        password: "Admin@12345",
-        passwordConfirm: "Admin@12345",
+        name: "ernestkoranteng68",
+        displayName: "Ernest Koranteng",
+        email: "ernestkoranteng68@gmail.com",
+        password: "Ernest@12345",
+        passwordConfirm: "Ernest@12345",
         role: "admin",
       },
       {

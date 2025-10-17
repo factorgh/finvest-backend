@@ -7,6 +7,13 @@ const AssetsSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    owners: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        role: { type: String, enum: ["primary", "co-owner"], default: "co-owner" },
+      },
+    ],
+    isJoint: { type: Boolean, default: false },
     assetName: {
       type: String,
       required: true,
@@ -92,6 +99,9 @@ function validateMaturityDate(maturityDate) {
   const now = new Date();
   return maturityDate <= now;
 }
+
+// Indexes
+AssetsSchema.index({ "owners.user": 1 });
 
 const Assets = mongoose.model("Assets", AssetsSchema);
 

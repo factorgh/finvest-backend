@@ -21,6 +21,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     partnerForm,
     certificate,
     checklist,
+    owners,
   } = req.body;
 
   const user = await User.findById(userId);
@@ -58,8 +59,25 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     0
   );
 
+  // Build owners: always include primary user, exclude primary from co-owners, and dedupe
+  const inputOwners = Array.isArray(owners) ? owners : [];
+  const normalizedCoOwners = inputOwners
+    .map((o) => ({ user: o.user || o, role: o.role || "co-owner" }))
+    .filter((o) => String(o.user) !== String(userId));
+  // Dedupe by user
+  const seen = new Set();
+  const uniqueCoOwners = normalizedCoOwners.filter((o) => {
+    const key = String(o.user);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const resolvedOwners = [{ user: userId, role: "primary" }, ...uniqueCoOwners];
+
   const investmentDetails = {
     ...req.body,
+    owners: resolvedOwners,
+    isJoint: resolvedOwners.length > 1,
     principalAccruedReturn,
     managementFee: managementFeeTotal,
     totalAccruedReturn: transformedTotalAccruedReturn,
@@ -73,7 +91,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
     certificate,
     checklist,
     transactionId: generateTransactionId(),
-    name: "Abdul",
+    name: req.body.name || "",
   };
 
   const newInvestment = await Investment.create(investmentDetails);
@@ -91,6 +109,7 @@ export const getAllInvestments = catchAsync(async (req, res, next) => {
     "addOns",
     "oneOffs",
     "userId",
+    { path: "owners.user" },
   ]);
   if (!investments) {
     return res.status(404).json({ status: "fail", message: "No investments" });
@@ -108,15 +127,25 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
   const investmentId = req.params.id;
   const updateData = req.body;
 
+  // Permission: allow if requester is owner or admin/superadmin
+  const existing = await Investment.findById(investmentId).populate({ path: "owners.user" });
+  if (!existing) {
+    return res.status(404).json({
+      status: "fail",
+      message: "Investment not found",
+    });
+  }
+  const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
+  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(req.user._id));
+  if (!isAdmin && !isOwner) {
+    return res.status(403).json({ status: "fail", message: "Not authorized" });
+  }
+
   // Update the investment and return the updated document
-  const investment = await Investment.findByIdAndUpdate(
-    investmentId,
-    updateData,
-    {
-      new: true, // Return the updated document
-      runValidators: true, // Ensure validation rules are applied
-    }
-  );
+  const investment = await Investment.findByIdAndUpdate(investmentId, updateData, {
+    new: true,
+    runValidators: true,
+  }).populate([{ path: "owners.user" }, "addOns", "oneOffs", "userId"]);
 
   if (!investment) {
     return res.status(404).json({
@@ -138,8 +167,8 @@ export const getInvestment = catchAsync(async (req, res, next) => {
   console.log("some user", userId);
   // Ensure the investment belongs to the user
   const investment = await Investment.find({
-    userId: userId,
-  }).populate(["addOns", "oneOffs"]);
+    "owners.user": userId,
+  }).populate(["addOns", "oneOffs", { path: "owners.user" }]);
 
   if (!investment) {
     return res.status(404).json({
@@ -273,6 +302,17 @@ export const archiveTransactions = async () => {
 
 export const deleteInvestment = catchAsync(async (req, res, nex) => {
   const { id } = req.params;
+  const existing = await Investment.findById(id).populate({ path: "owners.user" });
+  if (!existing) {
+    return res
+      .status(404)
+      .json({ status: "fail", message: "Investment not found" });
+  }
+  const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
+  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(req.user._id));
+  if (!isAdmin && !isOwner) {
+    return res.status(403).json({ status: "fail", message: "Not authorized" });
+  }
   const investment = await Investment.findByIdAndDelete(id);
   if (!investment) {
     return res

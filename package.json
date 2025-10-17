@@ -7,7 +7,8 @@
     "dev": "nodemon index.js",
     "start:prod": "NODE_ENV=production nodemon index.js",
     "build": "npm install",
-    "seed:admins": "node scripts/seed_admins.js"
+    "seed:admins": "node scripts/seed_admins.js",
+    "migrate:investment-owners": "node scripts/migrate_investment_owners.js"
   },
   "keywords": [],
   "author": "",

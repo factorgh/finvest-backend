@@ -7,6 +7,13 @@ const InvestmentSchema = new mongoose.Schema(
       ref: "User",
       required: [true, "User is required"],
     },
+    owners: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+        role: { type: String, enum: ["primary", "co-owner"], default: "co-owner" },
+      },
+    ],
+    isJoint: { type: Boolean, default: false },
     transactionId: {
       type: String,
       unique: true,
@@ -109,6 +116,7 @@ const InvestmentSchema = new mongoose.Schema(
   }
 );
 InvestmentSchema.index({ userId: 1 });
+InvestmentSchema.index({ "owners.user": 1 });
 InvestmentSchema.index({ quarter: 1 });
 InvestmentSchema.index({ transactionId: 1 }, { unique: true });
 
