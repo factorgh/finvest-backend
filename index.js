@@ -28,6 +28,7 @@ import withdrawalRouter from "./features/withdrawals/withdrawal.route.js";
 import dailyLoanDeductions from "./utils/loan-cron.js";
 import dailyRentalUpdates from "./utils/rental-cron.js";
 import dailyAccruedReturnJob from "./utils/schedule_cron_jobs.js";
+import uploadsRouter from "./utils/uploads/uploads.route.js";
 
 // Cron job for daily accrued returns
 dailyAccruedReturnJob();
@@ -111,8 +112,8 @@ app.use("/api/v1/rentals", rentalRouter);
 app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/withdrawals", withdrawalRouter);
 
-// File uploads routes
-// app.use("/api/v1/uploads", firebaseUpload);
+// File uploads routes (Cloudinary)
+app.use("/api/v1/uploads", uploadsRouter);
 
 // Aseets routes
 app.use("/api/v1/assets", assetsRoute);

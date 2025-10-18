@@ -1,68 +1,85 @@
-// import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-// import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-// import express from "express";
-// import multer from "multer";
+import express from "express";
+import multer from "multer";
+import cloudinary from "../cloudinary.js";
+import { verifyToken } from "../../features/auth/middleware/verification.js";
 
-// const router = express.Router();
+const router = express.Router();
 
-// // AWS SDK v3 S3 client
-// const s3Client = new S3Client({
-//   region: process.env.AWS_REGION_NAME,
-//   credentials: {
-//     accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-//     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-//   },
-// });
+const upload = multer({ storage: multer.memoryStorage() });
 
-// // Custom multer storage engine to upload files to S3 using AWS SDK v3
-// const multerStorage = multer.memoryStorage(); // Store files in memory for direct upload to S3
+// Upload multiple files to Cloudinary
+router.post("/", verifyToken, upload.array("files", 20), async (req, res) => {
+  try {
+    const folder = req.body.category || "uploads";
+    const uploads = await Promise.all(
+      (req.files || []).map(
+        (file) =>
+          new Promise((resolve, reject) => {
+            const resourceType = file.mimetype === "application/pdf" ? "raw" : "auto";
+            const stream = cloudinary.uploader.upload_stream(
+              { folder, resource_type: resourceType },
+              (error, result) => {
+                if (error) return reject(error);
+                return resolve({
+                  url: result?.secure_url,
+                  public_id: result?.public_id,
+                  resource_type: result?.resource_type,
+                });
+              }
+            );
+            stream.end(file.buffer);
+          })
+      )
+    );
+    res.json({ success: true, urls: uploads });
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    res.status(500).json({ success: false, message: "Upload failed" });
+  }
+});
 
-// const upload = multer({ storage: multerStorage });
+// List resources in a folder (category) from Cloudinary
+router.get("/list", async (req, res) => {
+  try {
+    const folder = req.query.category || "uploads";
+    // Using Cloudinary search API for flexibility
+    const result = await cloudinary.search
+      .expression(`folder:${folder}/*`)
+      .sort_by("created_at", "desc")
+      .max_results(100)
+      .execute();
+    const files = (result?.resources || []).map((r) => ({
+      url: r.secure_url || r.url,
+      public_id: r.public_id,
+      resource_type: r.resource_type,
+      format: r.format,
+      bytes: r.bytes,
+      created_at: r.created_at,
+      filename: r.filename,
+    }));
+    res.json({ success: true, files });
+  } catch (error) {
+    console.error("Cloudinary list error:", error);
+    res.status(500).json({ success: false, message: "Failed to list files" });
+  }
+});
 
-// // Function to generate a presigned URL for a file
-// const generatePresignedUrl = async (fileName, folder) => {
-//   try {
-//     const command = new PutObjectCommand({
-//       Bucket: process.env.AWS_BUCKET_NAME,
-//       Key: `${folder}/${Date.now()}-${fileName}`,
-//       ACL: "public-read",
-//     });
+// Delete a resource by public_id
+router.delete("/", verifyToken, async (req, res) => {
+  try {
+    const { public_id } = req.query;
+    if (!public_id) {
+      return res.status(400).json({ success: false, message: "public_id is required" });
+    }
+    const result = await cloudinary.uploader.destroy(String(public_id), { resource_type: "auto" });
+    if (result?.result !== "ok" && result?.result !== "not found") {
+      return res.status(500).json({ success: false, message: "Failed to delete resource" });
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error("Cloudinary delete error:", error);
+    res.status(500).json({ success: false, message: "Delete failed" });
+  }
+});
 
-//     const presignedUrl = await getSignedUrl(s3Client, command, {
-//       expiresIn: 3600,
-//     });
-//     return presignedUrl;
-//   } catch (error) {
-//     console.error("Error generating presigned URL:", error);
-//     throw error;
-//   }
-// };
-
-// // Endpoint to handle file uploads and return presigned URLs
-// router.post("/upload-to-s3", upload.array("files", 10), async (req, res) => {
-//   try {
-//     const fileUrls = [];
-
-//     // Generate presigned URLs for each file in the request
-//     for (const file of req.files) {
-//       const fileName = file.originalname; // Use original file name or modify it
-//       const folder = req.body.category || "uploads"; // Dynamic folder based on the category
-
-//       // Generate presigned URL for each file
-//       const presignedUrl = await generatePresignedUrl(fileName, folder);
-
-//       fileUrls.push({ presignedUrl, fileName });
-//     }
-
-//     // Send presigned URLs back to the frontend
-//     res.json({
-//       success: true,
-//       urls: fileUrls,
-//     });
-//   } catch (error) {
-//     console.error("Error uploading to S3:", error);
-//     res.status(500).json({ success: false, message: "Error uploading files" });
-//   }
-// });
-
-// export default router;
+export default router;
