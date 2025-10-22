@@ -5,8 +5,17 @@ const LoanSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
+      required: false,
     },
+
+    // Flag to indicate a loan created for a non-registered client
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
+    externalName: { type: String },
+    externalPhone: { type: String },
+    externalGhanaCard: { type: String },
 
     loanAmount: {
       type: Number,
