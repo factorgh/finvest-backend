@@ -1,6 +1,6 @@
+import "dotenv/config";
 import bodyParser from "body-parser";
 import cors from "cors";
-import dotenv from "dotenv";
 import express from "express";
 import expressMongoSanitize from "express-mongo-sanitize";
 import { rateLimit } from "express-rate-limit";
@@ -38,8 +38,6 @@ dailyLoanDeductions();
 
 // Cron job rentals
 dailyRentalUpdates();
-
-dotenv.config();
 
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
