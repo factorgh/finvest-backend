@@ -65,7 +65,9 @@ router.post("/", verifyToken, upload.array("files", 20), async (req, res) => {
 
         const base = R2_PUBLIC_BASE_URL.replace(/\/$/, "");
         const bucketSegment = `/${R2_BUCKET}`;
-        const baseWithBucket = base.endsWith(bucketSegment) ? base : `${base}${bucketSegment}`;
+        const baseWithBucket = base.endsWith(bucketSegment)
+          ? base
+          : `${base}${bucketSegment}`;
         const url = `${baseWithBucket}/${key}`;
         return {
           url,
@@ -133,3 +135,5 @@ router.delete("/", verifyToken, async (req, res) => {
 });
 
 export default router;
+
+console.log("uploads route");
