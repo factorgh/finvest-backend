@@ -30,12 +30,10 @@ router.post("/", verifyToken, upload.array("files", 20), async (req, res) => {
       .filter(([, v]) => !v)
       .map(([k]) => k);
     if (missing.length) {
-      return res
-        .status(500)
-        .json({
-          success: false,
-          message: `R2 not configured: missing ${missing.join(", ")}`,
-        });
+      return res.status(500).json({
+        success: false,
+        message: `R2 not configured: missing ${missing.join(", ")}`,
+      });
     }
     const r2 = new S3Client({
       region: "auto",
@@ -61,13 +59,14 @@ router.post("/", verifyToken, upload.array("files", 20), async (req, res) => {
             Key: key,
             Body: file.buffer,
             ContentType: file.mimetype,
+            ContentDisposition: "inline",
           })
         );
 
-        const url = `${R2_PUBLIC_BASE_URL.replace(
-          /\/$/,
-          ""
-        )}/${R2_BUCKET}/${key}`;
+        const base = R2_PUBLIC_BASE_URL.replace(/\/$/, "");
+        const bucketSegment = `/${R2_BUCKET}`;
+        const baseWithBucket = base.endsWith(bucketSegment) ? base : `${base}${bucketSegment}`;
+        const url = `${baseWithBucket}/${key}`;
         return {
           url,
           key,
