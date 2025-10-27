@@ -112,6 +112,7 @@ router.post("/", verifyToken, upload.array("files", 20), async (req, res) => {
     return res.status(500).json({ success: false, message: "Upload failed" });
   }
 });
+
 // List resources in a folder (category). Supports Cloudinary (default) and R2 via provider=r2
 router.get("/list", async (req, res) => {
   try {
@@ -416,13 +417,11 @@ router.delete("/", verifyToken, async (req, res) => {
       }
     }
 
-    return res
-      .status(500)
-      .json({
-        success: false,
-        message: "Failed to delete resource",
-        error: String(lastError?.message || lastError),
-      });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete resource",
+      error: String(lastError?.message || lastError),
+    });
   } catch (error) {
     console.error("Cloudinary delete error:", error);
     res.status(500).json({ success: false, message: "Delete failed" });
@@ -430,5 +429,3 @@ router.delete("/", verifyToken, async (req, res) => {
 });
 
 export default router;
-
-console.log("uploads route");
