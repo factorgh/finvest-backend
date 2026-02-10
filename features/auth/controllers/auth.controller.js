@@ -168,10 +168,42 @@ export const forgotPassword = catchAsync(async (req, res, next) => {
   console.log("Before save - user has token:", !!user.passwordResetToken);
   console.log("Before save - token expires:", user.passwordResetExpiresIn);
 
-  await user.save({ validateBeforeSave: false });
+  try {
+    console.log("User object before save:", {
+      _id: user._id,
+      email: user.email,
+      hasResetToken: !!user.passwordResetToken,
+      resetTokenLength: user.passwordResetToken?.length,
+      hasExpiresIn: !!user.passwordResetExpiresIn,
+      expiresIn: user.passwordResetExpiresIn,
+    });
 
-  console.log("After save - user has token:", !!user.passwordResetToken);
-  console.log("After save - token expires:", user.passwordResetExpiresIn);
+    await user.save({ validateBeforeSave: false });
+
+    console.log("Save successful");
+    console.log("User object after save:", {
+      _id: user._id,
+      email: user.email,
+      hasResetToken: !!user.passwordResetToken,
+      resetTokenLength: user.passwordResetToken?.length,
+      hasExpiresIn: !!user.passwordResetExpiresIn,
+      expiresIn: user.passwordResetExpiresIn,
+    });
+
+    // Verify by querying the database directly
+    const savedUser = await User.findById(user._id).select(
+      "+passwordResetToken +passwordResetExpiresIn",
+    );
+    console.log("Database verification:", {
+      hasResetToken: !!savedUser.passwordResetToken,
+      hasExpiresIn: !!savedUser.passwordResetExpiresIn,
+      expiresIn: savedUser.passwordResetExpiresIn,
+    });
+  } catch (saveError) {
+    console.error("Save failed:", saveError);
+    return next(new AppError("Failed to save reset token", 500));
+  }
+
   console.log(resetToken);
 
   // 3) Create reset URL with proper domain
@@ -284,7 +316,7 @@ export const resetPassword = catchAsync(async (req, res, next) => {
       false,
       "Token expired or invalid",
     );
-    next(new AppError("Token expired or invalid", 400));
+    return next(new AppError("Token expired or invalid", 400));
   }
 
   // Set the new password and remove reset token fields

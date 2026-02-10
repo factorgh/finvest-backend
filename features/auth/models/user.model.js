@@ -168,14 +168,16 @@ userSchema.methods.passwordChangedAfter = function (JWTTimestamp) {
 userSchema.methods.createPasswordResetToken = function () {
   const resetToken = crypto.randomBytes(32).toString("hex");
 
-  this.passwordResetToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+  // Set the hashed token on the user object
+  this.set(
+    "passwordResetToken",
+    crypto.createHash("sha256").update(resetToken).digest("hex"),
+  );
+
+  // Set the expiration time on the user object
+  this.set("passwordResetExpiresIn", Date.now() + 10 * 60 * 1000);
 
   console.log({ resetToken }, this.passwordResetToken);
-
-  this.passwordResetExpiresIn = Date.now() + 10 * 60 * 1000;
   console.log("Token expires at:", this.passwordResetExpiresIn);
   console.log("Current time:", Date.now());
   console.log(
