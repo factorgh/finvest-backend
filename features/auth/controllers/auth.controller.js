@@ -165,7 +165,13 @@ export const forgotPassword = catchAsync(async (req, res, next) => {
 
   // 2) Generate the random reset token
   const resetToken = user.createPasswordResetToken();
+  console.log("Before save - user has token:", !!user.passwordResetToken);
+  console.log("Before save - token expires:", user.passwordResetExpiresIn);
+
   await user.save({ validateBeforeSave: false });
+
+  console.log("After save - user has token:", !!user.passwordResetToken);
+  console.log("After save - token expires:", user.passwordResetExpiresIn);
   console.log(resetToken);
 
   // 3) Create reset URL with proper domain
@@ -231,13 +237,45 @@ export const resetPassword = catchAsync(async (req, res, next) => {
     .digest("hex");
 
   console.log("hashedToken", hashedToken);
-  // Find the user with the hashed token and check expiration
+  console.log("Current time:", Date.now());
+
+  // First, let's see if any user has this token (without expiration check)
+  const userWithTokenOnly = await User.findOne({
+    passwordResetToken: hashedToken,
+  });
+  console.log(
+    "User with token only:",
+    userWithTokenOnly ? "Found" : "Not found",
+  );
+
+  // Now check with expiration
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpiresIn: { $gt: Date.now() },
   });
 
   console.log("user", user);
+  if (user) {
+    console.log("Token expires at:", user.passwordResetExpiresIn);
+    console.log("Time remaining:", user.passwordResetExpiresIn - Date.now());
+  } else {
+    // Let's check if user exists but token is expired
+    const userWithExpiredToken = await User.findOne({
+      passwordResetToken: hashedToken,
+    });
+    if (userWithExpiredToken) {
+      console.log("Found user with token but expired!");
+      console.log(
+        "Token expired at:",
+        userWithExpiredToken.passwordResetExpiresIn,
+      );
+      console.log("Current time:", Date.now());
+      console.log(
+        "Expired by:",
+        Date.now() - userWithExpiredToken.passwordResetExpiresIn,
+      );
+    }
+  }
   if (!user) {
     await logAuditEvent(
       null,
