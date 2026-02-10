@@ -113,7 +113,7 @@ export const login = catchAsync(async (req, res, next) => {
   // Check if the user exists and password correct
   console.log("user", user);
 
-  if (!(await user.comparePassword(password, user.password))) {
+  if (!(await user.comparePassword(password))) {
     await user.incFailedLoginAttempts();
     await logAuditEvent(
       user._id,
