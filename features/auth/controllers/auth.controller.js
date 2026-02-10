@@ -415,12 +415,15 @@ export const resetPassword = catchAsync(async (req, res, next) => {
   }
 
   // Update the password and remove reset token fields
-  user.password = req.body.password;
-  user.passwordConfirm = req.body.passwordConfirm;
-  user.passwordResetToken = undefined;
-  user.passwordResetExpiresIn = undefined;
-  user.mustChangePassword = false;
+  user.set("password", req.body.password);
+  user.set("passwordConfirm", req.body.passwordConfirm);
+  user.set("passwordResetToken", undefined);
+  user.set("passwordResetExpiresIn", undefined);
+  user.set("mustChangePassword", false);
+
+  console.log("Before final save - password set");
   await user.save();
+  console.log("After final save - password should be hashed");
 
   // Log successful password reset
   await logAuditEvent(user._id, "PASSWORD_RESET", req, true);
