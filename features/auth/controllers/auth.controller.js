@@ -277,7 +277,7 @@ export const resetPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpiresIn: { $gt: new Date() },
-  }).select("+passwordHistory +passwordLastChanged");
+  }).select("+password +passwordHistory +passwordLastChanged");
 
   if (!user) {
     // await logAuditEvent(null, "PASSWORD_RESET_FAILED", req, false, "Invalid or expired token");
