@@ -15,56 +15,71 @@ const signToken = (id) => {
 };
 
 const createToken = async (user, statusCode, res, req = null) => {
-  const token = signToken(user._id);
-  const refreshToken = crypto.randomBytes(32).toString("hex");
+  console.log("createToken: Starting token creation");
 
-  // Create session record
-  if (req) {
-    try {
-      await Session.createSession({
-        userId: user._id,
-        token,
-        refreshToken,
-        deviceInfo: {
-          userAgent: req.headers["user-agent"],
-          ip: req.ip || req.connection.remoteAddress,
-          platform: req.headers["sec-ch-ua-platform"] || "unknown",
-        },
-        expiresAt: new Date(
-          Date.now() +
-            (process.env.JWT_COOKIE_EXPIRES_IN || 7) * 24 * 60 * 60 * 1000,
-        ),
-      });
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      // Continue without session management if it fails
+  try {
+    const token = signToken(user._id);
+    const refreshToken = crypto.randomBytes(32).toString("hex");
+    console.log("createToken: Tokens generated");
+
+    // Create session record
+    if (req) {
+      console.log("createToken: Creating session record");
+      try {
+        await Session.createSession({
+          userId: user._id,
+          token,
+          refreshToken,
+          deviceInfo: {
+            userAgent: req.headers["user-agent"],
+            ip: req.ip || req.connection.remoteAddress,
+            platform: req.headers["sec-ch-ua-platform"] || "unknown",
+          },
+          expiresAt: new Date(
+            Date.now() +
+              (process.env.JWT_COOKIE_EXPIRES_IN || 7) * 24 * 60 * 60 * 1000,
+          ),
+        });
+        console.log("createToken: Session created successfully");
+      } catch (error) {
+        console.error("Failed to create session:", error);
+        // Continue without session management if it fails
+      }
     }
+
+    console.log("createToken: Setting cookies");
+    // Set jwt in cookies
+    const cookieOption = {
+      expiresIn: process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    };
+
+    res.cookie("jwt", token, cookieOption);
+    res.cookie("refreshToken", refreshToken, {
+      ...cookieOption,
+      expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days for refresh token
+    });
+
+    console.log("createToken: Sending response");
+    // Remove password from output
+    user.password = undefined;
+
+    res.status(statusCode).json({
+      status: "success",
+      token,
+      refreshToken,
+      data: {
+        user,
+      },
+    });
+
+    console.log("createToken: Completed successfully");
+  } catch (error) {
+    console.error("createToken: Error occurred:", error);
+    throw error;
   }
-
-  // Set jwt in cookies
-  const cookieOption = {
-    expiresIn: process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
-    httpOnly: true,
-  };
-
-  if (process.env.NODE_ENV === "production") {
-    cookieOption.secure = true;
-  }
-
-  res.cookie("jwt", token, cookieOption);
-  res.cookie("refreshToken", refreshToken, {
-    ...cookieOption,
-    expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days for refresh token
-  });
-
-  // Remove password from output
-  user.password = undefined;
-  res.status(statusCode).json({
-    status: "success",
-    user,
-    token,
-    refreshToken,
-  });
 };
 // Handle signup
 export const signup = catchAsync(async (req, res, next) => {
@@ -129,8 +144,11 @@ export const login = catchAsync(async (req, res, next) => {
   await user.resetFailedLoginAttempts();
   await logAuditEvent(user._id, "LOGIN_SUCCESS", req, true);
 
+  console.log("Login successful, creating token...");
+
   // Check if password change is required
   if (user.mustChangePassword) {
+    console.log("Password change required");
     return res.status(200).json({
       status: "success",
       message: "Password change required",
@@ -143,7 +161,14 @@ export const login = catchAsync(async (req, res, next) => {
     });
   }
 
-  createToken(user, 200, res, req);
+  console.log("Calling createToken...");
+  try {
+    createToken(user, 200, res, req);
+    console.log("createToken completed successfully");
+  } catch (tokenError) {
+    console.error("createToken failed:", tokenError);
+    return next(new AppError("Failed to create authentication token", 500));
+  }
 });
 
 // Handle forgot password
