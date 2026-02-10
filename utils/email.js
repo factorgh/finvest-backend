@@ -3,36 +3,26 @@ import nodemailer from "nodemailer";
 
 dotenv.config();
 
-const sendEmail = async (options) => {
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  service: "gmail",
+  port: 587,
+  secure: false,
+  debug: true,
+  auth: {
+    user: "burchellsbale@gmail.com",
+    pass: "omcj ypcb qapd cvtq", // Your app password
+  },
+});
+
+// Function to send an email
+export const sendEmail = async (emailData) => {
   try {
-    // Create Transporter
-    const transporter = nodemailer.createTransport({
-      host: "sandbox.smtp.mailtrap.io",
-      port: 2525,
+    await transporter.sendMail(emailData);
 
-      auth: {
-        user: "4c1d4b0e0ab123",
-        pass: "d49a47db474fb3",
-      },
-    });
-
-    // Define the email options
-    const mailOptions = {
-      from: '"Lynchping Global - Email" <no-reply@lynchpinglobal.com>',
-      to: options.email,
-      subject: options.subject,
-      text: options.message,
-    };
-
-    // Actually send the email
-    await transporter.sendMail(mailOptions);
     console.log("Email sent successfully");
   } catch (error) {
     console.error("Error sending email:", error);
-    throw new Error(
-      "There was an issue sending the email. Please try again later."
-    );
+    throw new Error("Failed to send email");
   }
 };
-
-export default sendEmail;

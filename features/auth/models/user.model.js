@@ -69,13 +69,43 @@ const userSchema = new mongoose.Schema(
     passwordChangedAt: Date,
     passwordResetExpiresIn: Date,
     passwordResetToken: String,
+    passwordHistory: [
+      {
+        hash: String,
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    failedLoginAttempts: {
+      count: {
+        type: Number,
+        default: 0,
+      },
+      lastAttempt: Date,
+      lockUntil: Date,
+    },
+    passwordLastChanged: {
+      type: Date,
+      default: Date.now,
+    },
+    mustChangePassword: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorEnabled: {
+      type: Boolean,
+      default: false,
+    },
+    twoFactorSecret: String,
     active: {
       type: Boolean,
       default: true,
       select: false,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // Hash password before saving
@@ -83,10 +113,26 @@ userSchema.pre("save", async function (next) {
   // Only hash password if it has been modified
   if (!this.isModified("password")) return next();
 
+  // Store current password hash in history before changing
+  if (!this.isNew && this.password) {
+    this.passwordHistory.push({
+      hash: this.password,
+      createdAt: new Date(),
+    });
+
+    // Keep only last 12 passwords
+    if (this.passwordHistory.length > 12) {
+      this.passwordHistory = this.passwordHistory.slice(-12);
+    }
+  }
+
   // Hash password with cost of 12
   this.password = await bcrypt.hash(this.password, 12);
 
-  // Delete passwordConfirm field (it’s only needed for validation)
+  // Update password last changed timestamp
+  this.passwordLastChanged = new Date();
+
+  // Delete passwordConfirm field (it's only needed for validation)
   this.passwordConfirm = undefined;
   next();
 });
@@ -104,7 +150,7 @@ userSchema.pre("save", async function (next) {
 // Compare password instance method
 userSchema.methods.comparePassword = async function (
   candidatePassword,
-  userPassword
+  userPassword,
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
 };
@@ -132,6 +178,68 @@ userSchema.methods.createPasswordResetToken = function () {
   this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
 
   return resetToken;
+};
+
+// Check if password exists in user's history
+userSchema.methods.isPasswordInHistory = async function (newPassword) {
+  for (const historicalPassword of this.passwordHistory) {
+    const isMatch = await bcrypt.compare(newPassword, historicalPassword.hash);
+    if (isMatch) {
+      return true;
+    }
+  }
+  return false;
+};
+
+// Check if account is locked
+userSchema.methods.isLocked = function () {
+  return !!(
+    this.failedLoginAttempts.lockUntil &&
+    this.failedLoginAttempts.lockUntil > Date.now()
+  );
+};
+
+// Increment failed login attempts
+userSchema.methods.incFailedLoginAttempts = function () {
+  // If we have a previous lock that has expired, restart at 1
+  if (
+    this.failedLoginAttempts.lockUntil &&
+    this.failedLoginAttempts.lockUntil < Date.now()
+  ) {
+    return this.updateOne({
+      $unset: { "failedLoginAttempts.lockUntil": 1 },
+      $set: {
+        "failedLoginAttempts.count": 1,
+        "failedLoginAttempts.lastAttempt": new Date(),
+      },
+    });
+  }
+
+  const updates = {
+    $inc: { "failedLoginAttempts.count": 1 },
+    $set: { "failedLoginAttempts.lastAttempt": new Date() },
+  };
+
+  // Lock account after 5 failed attempts for 2 hours
+  if (this.failedLoginAttempts.count + 1 >= 5 && !this.isLocked()) {
+    updates.$set = {
+      ...updates.$set,
+      "failedLoginAttempts.lockUntil": Date.now() + 2 * 60 * 60 * 1000, // 2 hours
+    };
+  }
+
+  return this.updateOne(updates);
+};
+
+// Reset failed login attempts on successful login
+userSchema.methods.resetFailedLoginAttempts = function () {
+  return this.updateOne({
+    $unset: {
+      "failedLoginAttempts.count": 1,
+      "failedLoginAttempts.lastAttempt": 1,
+      "failedLoginAttempts.lockUntil": 1,
+    },
+  });
 };
 
 // Query Middleware
