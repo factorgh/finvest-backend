@@ -261,7 +261,7 @@ export const resetPassword = catchAsync(async (req, res, next) => {
   }
 
   // Validate password strength
-  const passwordValidation = passwordValidator.validatePassword(password);
+  const passwordValidation = passwordValidator.validatePassword(password, {});
   if (!passwordValidation.isValid) {
     return next(new AppError(passwordValidation.errors.join(", "), 400));
   }
