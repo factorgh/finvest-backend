@@ -276,7 +276,7 @@ export const resetPassword = catchAsync(async (req, res, next) => {
 
   const user = await User.findOne({
     passwordResetToken: hashedToken,
-    passwordResetExpiresIn: { $gt: Date.now() },
+    passwordResetExpiresIn: { $gt: new Date() },
   }).select("+passwordHistory +passwordLastChanged");
 
   if (!user) {
