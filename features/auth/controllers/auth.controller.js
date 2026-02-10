@@ -1,244 +1,210 @@
 import crypto from "crypto";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { promisify } from "util";
+import { catchAsync } from "../../../utils/catchAsync.js";
 import AppError from "../../../utils/appError.js";
-import { sendEmail } from "../../../utils/email.js";
-import catchAsync from "../../error/catch-async-error.js";
 import User from "../models/user.model.js";
-import Session from "../models/session.model.js";
+// Temporarily disabled for debugging
+// import { auditLogger, logAuditEvent } from "../../../middleware/auditLogger.js";
 import PasswordValidator from "../../../utils/passwordValidator.js";
-import { auditLogger, logAuditEvent } from "../../../middleware/auditLogger.js";
 
+// Create password validator instance
+const passwordValidator = new PasswordValidator();
+
+/**
+ * Create JWT token
+ */
 const signToken = (id) => {
-  return jwt.sign({ id: id }, process.env.JWT_SECRET, {
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
 
-const createToken = async (user, statusCode, res, req = null) => {
-  console.log("createToken: Starting token creation");
+/**
+ * Create and send token response
+ */
+const createSendToken = (user, statusCode, res) => {
+  const token = signToken(user._id);
+  const cookieOptions = {
+    expires: new Date(
+      Date.now() +
+        (process.env.JWT_COOKIE_EXPIRES_IN || 7) * 24 * 60 * 60 * 1000,
+    ),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  };
 
-  try {
-    const token = signToken(user._id);
-    const refreshToken = crypto.randomBytes(32).toString("hex");
-    console.log("createToken: Tokens generated");
+  res.cookie("jwt", token, cookieOptions);
 
-    // Create session record
-    if (req) {
-      console.log("createToken: Creating session record");
-      try {
-        await Session.createSession({
-          userId: user._id,
-          token,
-          refreshToken,
-          deviceInfo: {
-            userAgent: req.headers["user-agent"],
-            ip: req.ip || req.connection.remoteAddress,
-            platform: req.headers["sec-ch-ua-platform"] || "unknown",
-          },
-          expiresAt: new Date(
-            Date.now() +
-              (process.env.JWT_COOKIE_EXPIRES_IN || 7) * 24 * 60 * 60 * 1000,
-          ),
-        });
-        console.log("createToken: Session created successfully");
-      } catch (error) {
-        console.error("Failed to create session:", error);
-        // Continue without session management if it fails
-      }
-    }
+  // Remove password from output
+  user.password = undefined;
 
-    console.log("createToken: Setting cookies");
-    // Set jwt in cookies
-    const cookieOption = {
-      expiresIn: process.env.JWT_COOKIE_EXPIRES_IN * 24 * 60 * 60 * 1000,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-    };
-
-    res.cookie("jwt", token, cookieOption);
-    res.cookie("refreshToken", refreshToken, {
-      ...cookieOption,
-      expiresIn: 30 * 24 * 60 * 60 * 1000, // 30 days for refresh token
-    });
-
-    console.log("createToken: Sending response");
-    // Remove password from output
-    user.password = undefined;
-
-    res.status(statusCode).json({
-      status: "success",
-      token,
-      refreshToken,
-      data: {
-        user,
-      },
-    });
-
-    console.log("createToken: Completed successfully");
-  } catch (error) {
-    console.error("createToken: Error occurred:", error);
-    throw error;
-  }
+  res.status(statusCode).json({
+    status: "success",
+    token,
+    data: {
+      user,
+    },
+  });
 };
-// Handle signup
+
+/**
+ * Input sanitization helper
+ */
+const sanitizeInput = (input) => {
+  if (typeof input !== "string") return input;
+  return input.trim().replace(/[<>]/g, "");
+};
+
+/**
+ * User signup
+ */
 export const signup = catchAsync(async (req, res, next) => {
+  const { name, email, password, passwordConfirm } = req.body;
+
+  // Required fields
+  if (!name || !email || !password || !passwordConfirm) {
+    return next(new AppError("All fields are required", 400));
+  }
+
+  // Basic sanitization
+  const sanitizedName = name.trim();
+  const sanitizedEmail = email.trim().toLowerCase();
+
+  // Basic email check
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(sanitizedEmail)) {
+    return next(new AppError("Invalid email address", 400));
+  }
+
+  // Password rules (keep it simple)
+  if (password.length < 8) {
+    return next(new AppError("Password must be at least 8 characters", 400));
+  }
+
+  if (password !== passwordConfirm) {
+    return next(new AppError("Passwords do not match", 400));
+  }
+
+  // Check if email already exists
+  const existingUser = await User.findOne({ email: sanitizedEmail });
+  if (existingUser) {
+    return next(new AppError("Email already registered", 400));
+  }
+
+  // Create user
   const newUser = await User.create({
-    name: req.body.name,
-    email: req.body.email,
-    displayName: req.body.displayName,
-    password: req.body.password,
-    passwordConfirm: req.body.passwordConfirm,
+    name: sanitizedName,
+    email: sanitizedEmail,
+    password,
+    passwordConfirm,
+    displayName: sanitizedName,
   });
 
-  createToken(newUser, 201, res, req);
+  createSendToken(newUser, 201, res);
 });
 
-// Handle login
+/**
+ * User login
+ */
 export const login = catchAsync(async (req, res, next) => {
-  // Check if email and password exist
   const { identifier, password } = req.body;
-  console.log("================================================ login");
-  console.log("identifier", identifier);
 
+  // Input validation
   if (!identifier || !password) {
-    return next(new AppError("Please provide email and password!", 400));
+    return next(new AppError("Email/username and password are required", 400));
   }
 
-  const user = identifier.includes("@")
-    ? await User.findOne({ email: identifier }).select("+password")
-    : await User.findOne({ name: identifier }).select("+password");
+  const sanitizedIdentifier = sanitizeInput(identifier);
+  const sanitizedPassword = sanitizeInput(password);
+
+  // Find user by email or username
+  const user = await User.findOne({
+    $or: [
+      { email: sanitizedIdentifier.toLowerCase() },
+      { name: sanitizedIdentifier },
+    ],
+  }).select(
+    "+password +failedLoginAttempts +mustChangePassword +twoFactorEnabled +passwordHistory +passwordResetToken +passwordResetExpiresIn +passwordLastChanged +passwordChangedAt",
+  );
 
   if (!user) {
-    await logAuditEvent(null, "LOGIN_FAILED", req, false, "User not found");
-    return res.status(404).json({ message: "User not found" });
+    // await logAuditEvent(null, "LOGIN_FAILED", req, false, "User not found");
+    return res.status(404).json({
+      status: "error",
+      message: "Invalid credentials",
+    });
   }
 
-  // Check if account is locked
+  // Check account lock status
   if (user.isLocked()) {
-    await logAuditEvent(user._id, "LOGIN_FAILED", req, false, "Account locked");
+    // await logAuditEvent(user._id, "LOGIN_FAILED", req, false, "Account locked");
     return next(
       new AppError(
-        "Account is locked due to multiple failed attempts. Please try again later.",
+        "Account is temporarily locked due to multiple failed attempts. Please try again later.",
         423,
       ),
     );
   }
 
-  // Check if the user exists and password correct
-  console.log("user", user);
+  // Verify password
+  const isPasswordValid = await user.comparePassword(sanitizedPassword);
 
-  if (!(await user.comparePassword(password))) {
+  if (!isPasswordValid) {
     await user.incFailedLoginAttempts();
-    await logAuditEvent(
-      user._id,
-      "LOGIN_FAILED",
-      req,
-      false,
-      "Invalid password",
-    );
-    return next(new AppError("Incorrect email or password", 401));
+    // await logAuditEvent(
+    //   user._id,
+    //   "LOGIN_FAILED",
+    //   req,
+    //   false,
+    //   "Invalid password",
+    // );
+    return res.status(401).json({
+      status: "error",
+      message: "Invalid credentials",
+    });
   }
 
   // Reset failed attempts on successful login
   await user.resetFailedLoginAttempts();
-  await logAuditEvent(user._id, "LOGIN_SUCCESS", req, true);
+  // await logAuditEvent(user._id, "LOGIN_SUCCESS", req, true);
 
-  console.log("Login successful, creating token...");
-
-  // Check if password change is required
-  if (user.mustChangePassword) {
-    console.log("Password change required");
-    return res.status(200).json({
-      status: "success",
-      message: "Password change required",
-      requirePasswordChange: true,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-      },
-    });
-  }
-
-  console.log("Calling createToken...");
-  try {
-    createToken(user, 200, res, req);
-    console.log("createToken completed successfully");
-  } catch (tokenError) {
-    console.error("createToken failed:", tokenError);
-    return next(new AppError("Failed to create authentication token", 500));
-  }
+  createSendToken(user, 200, res);
 });
 
-// Handle forgot password
+/**
+ * Forgot password
+ */
 export const forgotPassword = catchAsync(async (req, res, next) => {
-  console.log("----------------------forgotPassword-----------------------");
-  // 1) Get user based on POSTed email
-  const user = await User.findOne({ email: req.body.email });
+  const { email } = req.body;
+
+  if (!email) {
+    return next(new AppError("Please provide your email address", 400));
+  }
+
+  const sanitizedEmail = sanitizeInput(email).toLowerCase();
+
+  const user = await User.findOne({ email: sanitizedEmail });
 
   if (!user) {
-    await logAuditEvent(
-      null,
-      "PASSWORD_RESET_REQUEST",
-      req,
-      false,
-      "User not found",
-    );
-    return next(new AppError("There is no user with email address.", 404));
+    return res.status(404).json({
+      status: "error",
+      message: "No user found with that email address",
+    });
   }
 
-  // 2) Generate the random reset token
-  const resetToken = user.createPasswordResetToken();
-  console.log("Before save - user has token:", !!user.passwordResetToken);
-  console.log("Before save - token expires:", user.passwordResetExpiresIn);
-
   try {
-    console.log("User object before save:", {
-      _id: user._id,
-      email: user.email,
-      hasResetToken: !!user.passwordResetToken,
-      resetTokenLength: user.passwordResetToken?.length,
-      hasExpiresIn: !!user.passwordResetExpiresIn,
-      expiresIn: user.passwordResetExpiresIn,
-    });
-
+    // Generate secure reset token
+    const resetToken = user.createPasswordResetToken();
     await user.save({ validateBeforeSave: false });
 
-    console.log("Save successful");
-    console.log("User object after save:", {
-      _id: user._id,
-      email: user.email,
-      hasResetToken: !!user.passwordResetToken,
-      resetTokenLength: user.passwordResetToken?.length,
-      hasExpiresIn: !!user.passwordResetExpiresIn,
-      expiresIn: user.passwordResetExpiresIn,
-    });
+    const resetURL = `${process.env.FRONTEND_URL || "https://partner.lynchpinglobal.com"}/reset-password/${resetToken}`;
 
-    // Verify by querying the database directly
-    const savedUser = await User.findById(user._id).select(
-      "+passwordResetToken +passwordResetExpiresIn",
-    );
-    console.log("Database verification:", {
-      hasResetToken: !!savedUser.passwordResetToken,
-      hasExpiresIn: !!savedUser.passwordResetExpiresIn,
-      expiresIn: savedUser.passwordResetExpiresIn,
-    });
-  } catch (saveError) {
-    console.error("Save failed:", saveError);
-    return next(new AppError("Failed to save reset token", 500));
-  }
-
-  console.log(resetToken);
-
-  // 3) Create reset URL with proper domain
-  const resetURL = `${process.env.FRONTEND_URL || "https://partner.lynchpinglobal.com"}/reset-password/${resetToken}`;
-
-  // 4) Send professional email with HTML template
-  try {
+    // Send reset email
     const { getPasswordResetTemplate } =
       await import("../../../utils/emailTemplates.js");
-
     const htmlContent = getPasswordResetTemplate(
       user.name || user.displayName || "User",
       resetURL,
@@ -246,300 +212,152 @@ export const forgotPassword = catchAsync(async (req, res, next) => {
       1, // 1 hour expiry
     );
 
+    const { sendEmail } = await import("../../../utils/email.js");
     await sendEmail({
       to: user.email,
-      subject: "🔒 Password Reset Request - Lynchpin Global",
+      subject: "Password Reset Request",
       html: htmlContent,
-      text: `Password Reset Request\n\nHi ${user.name || user.displayName || "User"},\n\nWe received a request to reset your password. Click the link below to reset it:\n\n${resetURL}\n\nThis link will expire in 1 hour.\n\nIf you didn't request this, please ignore this email.\n\nLynchpin Global Team`,
     });
 
-    // Log successful email send
-    await logAuditEvent(user._id, "PASSWORD_RESET_REQUEST", req, true);
+    // await logAuditEvent(user._id, "PASSWORD_RESET_REQUESTED", req, true);
 
     res.status(200).json({
       status: "success",
-      message:
-        "Password reset link sent to your email! Please check your inbox.",
-      // In development, return token for testing
-      ...(process.env.NODE_ENV === "development" && { resetToken }),
+      message: "Password reset link sent to your email",
     });
-  } catch (err) {
+  } catch (error) {
     user.passwordResetToken = undefined;
     user.passwordResetExpiresIn = undefined;
     await user.save({ validateBeforeSave: false });
 
-    await logAuditEvent(
-      user._id,
-      "PASSWORD_RESET_REQUEST",
-      req,
-      false,
-      "Email send failed",
-    );
+    // await logAuditEvent(
+    //   user._id,
+    //   "PASSWORD_RESET_FAILED",
+    //   req,
+    //   false,
+    //   error.message,
+    // );
 
     return next(
-      new AppError("There was an error sending the email. Try again later!"),
-      500,
+      new AppError(
+        "There was an error sending the email. Try again later.",
+        500,
+      ),
     );
   }
 });
 
-// Reset Password Handler
+/**
+ * Reset password
+ */
 export const resetPassword = catchAsync(async (req, res, next) => {
-  // Get user based on the token
+  const { token } = req.params;
+  const { password, passwordConfirm } = req.body;
 
-  // Hash the token from URL params to compare with the stored hash
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(req.params.token)
-    .digest("hex");
+  if (!password || !passwordConfirm) {
+    return next(
+      new AppError("Password and password confirmation are required", 400),
+    );
+  }
 
-  console.log("hashedToken", hashedToken);
-  console.log("Current time:", Date.now());
+  // Validate password strength
+  const passwordValidation = passwordValidator.validatePassword(password);
+  if (!passwordValidation.isValid) {
+    return next(new AppError(passwordValidation.errors.join(", "), 400));
+  }
 
-  // First, let's see if any user has this token (without expiration check)
-  const userWithTokenOnly = await User.findOne({
-    passwordResetToken: hashedToken,
-  });
-  console.log(
-    "User with token only:",
-    userWithTokenOnly ? "Found" : "Not found",
-  );
+  // Check if passwords match
+  if (password !== passwordConfirm) {
+    return next(new AppError("Passwords do not match", 400));
+  }
 
-  // Now check with expiration
+  // Hash the token and find user
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
   const user = await User.findOne({
     passwordResetToken: hashedToken,
     passwordResetExpiresIn: { $gt: Date.now() },
-  });
+  }).select("+passwordHistory +passwordLastChanged");
 
-  console.log("user", user);
-  if (user) {
-    console.log("Token expires at:", user.passwordResetExpiresIn);
-    console.log("Time remaining:", user.passwordResetExpiresIn - Date.now());
-  } else {
-    // Let's check if user exists but token is expired
-    const userWithExpiredToken = await User.findOne({
-      passwordResetToken: hashedToken,
-    });
-    if (userWithExpiredToken) {
-      console.log("Found user with token but expired!");
-      console.log(
-        "Token expired at:",
-        userWithExpiredToken.passwordResetExpiresIn,
-      );
-      console.log("Current time:", Date.now());
-      console.log(
-        "Expired by:",
-        Date.now() - userWithExpiredToken.passwordResetExpiresIn,
-      );
-    }
-  }
   if (!user) {
-    await logAuditEvent(
-      null,
-      "PASSWORD_RESET",
-      req,
-      false,
-      "Token expired or invalid",
-    );
-    return next(new AppError("Token expired or invalid", 400));
+    // await logAuditEvent(null, "PASSWORD_RESET_FAILED", req, false, "Invalid or expired token");
+    return next(new AppError("Token is invalid or has expired", 400));
   }
 
-  // Set the new password and remove reset token fields
-  console.log("resetPassword");
-  console.log("req.body.password", req.body.password);
-  console.log("req.body.passwordConfirm", req.body.passwordConfirm);
-
-  // Initialize password validator
-  const passwordValidator = new PasswordValidator();
-  const validationResult = passwordValidator.validatePassword(
-    req.body.password,
-    {
-      name: user.name,
-      email: user.email,
-      displayName: user.displayName,
-    },
-  );
-
-  if (!validationResult.isValid) {
-    await logAuditEvent(
-      user._id,
-      "PASSWORD_RESET",
-      req,
-      false,
-      "Password validation failed",
-    );
+  // Check if new password is different from current password
+  const isSamePassword = await user.comparePassword(password);
+  if (isSamePassword) {
     return next(
-      new AppError(
-        `Password validation failed: ${validationResult.errors.join(", ")}`,
-        400,
-      ),
+      new AppError("New password must be different from current password", 400),
     );
   }
 
-  // Check if password is in user's history
-  const isPasswordInHistory = await user.isPasswordInHistory(req.body.password);
-  if (isPasswordInHistory) {
-    await logAuditEvent(
-      user._id,
-      "PASSWORD_RESET",
-      req,
-      false,
-      "Password reused from history",
-    );
-    return next(
-      new AppError(
-        "You cannot reuse a previous password. Please choose a different one.",
-        400,
-      ),
-    );
-  }
+  // Update password and remove reset token fields
+  user.password = password;
+  user.passwordConfirm = passwordConfirm;
+  user.passwordResetToken = undefined;
+  user.passwordResetExpiresIn = undefined;
+  user.passwordChangedAt = Date.now() - 1000;
 
-  // Validate password length and confirm password
-  if (
-    req.body.password.length < 8 ||
-    req.body.passwordConfirm !== req.body.password
-  ) {
-    await logAuditEvent(
-      user._id,
-      "PASSWORD_RESET",
-      req,
-      false,
-      "Password requirements not met",
-    );
-    return next(
-      new AppError(
-        "Password must be at least 8 characters long and match the confirm password",
-        400,
-      ),
-    );
-  }
-
-  // Update the password and remove reset token fields
-  user.set("password", req.body.password);
-  user.set("passwordConfirm", req.body.passwordConfirm);
-  user.set("passwordResetToken", undefined);
-  user.set("passwordResetExpiresIn", undefined);
-  user.set("mustChangePassword", false);
-
-  console.log("Before final save - password set");
   await user.save();
-  console.log("After final save - password should be hashed");
 
-  // Log successful password reset
-  await logAuditEvent(user._id, "PASSWORD_RESET", req, true);
+  // await logAuditEvent(user._id, "PASSWORD_RESET_SUCCESS", req, true);
 
-  // Log the user in by sending a new JWT
-  createToken(user, 200, res, req);
+  createSendToken(user, 200, res);
 });
 
-// Update current user password
-export const updateUserPassword = catchAsync(async (req, res, next) => {
-  // Get the current user
-  const currentUser = await User.findById(req.user.id).select("+password");
-
-  // Check if the provided password is correct
-  if (
-    !(await currentUser.comparePassword(
-      req.body.currentPassword,
-      currentUser.password,
-    ))
-  ) {
-    await logAuditEvent(
-      currentUser._id,
-      "PASSWORD_CHANGE",
-      req,
-      false,
-      "Current password incorrect",
-    );
-    return next(new AppError("Current password is incorrect", 401));
-  }
-
-  // Initialize password validator
-  const passwordValidator = new PasswordValidator();
-  const validationResult = passwordValidator.validatePassword(
-    req.body.newPassword,
-    {
-      name: currentUser.name,
-      email: currentUser.email,
-      displayName: currentUser.displayName,
-    },
-  );
-
-  if (!validationResult.isValid) {
-    await logAuditEvent(
-      currentUser._id,
-      "PASSWORD_CHANGE",
-      req,
-      false,
-      "New password validation failed",
-    );
-    return next(
-      new AppError(
-        `Password validation failed: ${validationResult.errors.join(", ")}`,
-        400,
-      ),
-    );
-  }
-
-  // Check if new password is in user's history
-  const isPasswordInHistory = await currentUser.isPasswordInHistory(
-    req.body.newPassword,
-  );
-  if (isPasswordInHistory) {
-    await logAuditEvent(
-      currentUser._id,
-      "PASSWORD_CHANGE",
-      req,
-      false,
-      "New password reused from history",
-    );
-    return next(
-      new AppError(
-        "You cannot reuse a previous password. Please choose a different one.",
-        400,
-      ),
-    );
-  }
-
-  // Update the password
-  currentUser.password = req.body.newPassword;
-  currentUser.passwordConfirm = req.body.newPasswordConfirm;
-  currentUser.mustChangePassword = false;
-  await currentUser.save();
-
-  // Log successful password change
-  await logAuditEvent(currentUser._id, "PASSWORD_CHANGE", req, true);
-
-  // Send confirmation email
+/**
+ * Logout
+ */
+export const logout = catchAsync(async (req, res, next) => {
   try {
-    const { getPasswordChangedTemplate } =
-      await import("../../../utils/emailTemplates.js");
+    // await logAuditEvent(req.user._id, "LOGOUT", req, true);
 
-    const htmlContent = getPasswordChangedTemplate(
-      currentUser.name || currentUser.displayName || "User",
-      `${process.env.FRONTEND_URL || "https://partner.lynchpinglobal.com"}/login`,
-      {
-        ip: req.ip || req.connection.remoteAddress,
-        userAgent: req.headers["user-agent"],
-        location: "Unknown", // You can enhance this with geoip-lite
-      },
-    );
-
-    await sendEmail({
-      to: currentUser.email,
-      subject: "✅ Password Successfully Changed - Lynchpin Global",
-      html: htmlContent,
-      text: `Password Changed Successfully\n\nHi ${currentUser.name || currentUser.displayName || "User"},\n\nYour password has been successfully changed. All previous sessions have been invalidated.\n\nIf you didn't make this change, please contact support immediately.\n\nLynchpin Global Team`,
+    res.cookie("jwt", "loggedout", {
+      expires: new Date(Date.now() + 10 * 1000),
+      httpOnly: true,
     });
-  } catch (emailError) {
-    console.error(
-      "Failed to send password change confirmation email:",
-      emailError,
+
+    res.status(200).json({
+      status: "success",
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    await logAuditEvent(
+      req.user?._id,
+      "LOGOUT_FAILED",
+      req,
+      false,
+      error.message,
     );
-    // Don't fail the request if email fails
+    return next(new AppError("Logout failed", 500));
+  }
+});
+
+/**
+ * Get user profile
+ */
+export const getProfile = catchAsync(async (req, res, next) => {
+  const user = await User.findById(req.user._id);
+
+  if (!user) {
+    return next(new AppError("User not found", 404));
   }
 
-  // Create new token (invalidates old sessions)
-  await Session.invalidateUserSessions(currentUser._id);
-  createToken(currentUser, 200, res, req);
+  // await logAuditEvent(user._id, "PROFILE_ACCESSED", req, true);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+        createdAt: user.createdAt,
+        lastLogin: user.lastLogin,
+      },
+    },
+  });
 });

@@ -11,7 +11,7 @@ import morgan from "morgan";
 
 import xss from "xss-clean";
 import assetsRoute from "./features/assets/route/assets_route.js";
-import authRouter from "./features/auth/routes/auth.route.js";
+import authRouter from "./features/auth/routes/auth.routes.js";
 import userRouter from "./features/auth/routes/user.route.js";
 import { errorHandler } from "./features/error/error-controllroller.js";
 import addOnRoute from "./features/investment/router/addons.router.js";
@@ -62,7 +62,7 @@ app.use(helmet());
 app.use(
   cors({
     // origin: "https://lynchpinglobal-client-v1.vercel.app",
-  })
+  }),
 );
 // LOGGGER
 app.use(morgan("dev"));
@@ -86,7 +86,7 @@ app.use(
     max: 300,
     windowMs: 60 * 60 * 1000, // 1 hour
     message: "Too many requests, please try again later.",
-  })
+  }),
 );
 
 // Log incoming requests
