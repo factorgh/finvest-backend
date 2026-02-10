@@ -115,10 +115,23 @@ userSchema.pre("save", async function (next) {
 
   // Store current password hash in history before changing
   if (!this.isNew && this.password) {
-    this.passwordHistory.push({
-      hash: this.password,
-      createdAt: new Date(),
-    });
+    // Check if password is already hashed (starts with $2a$)
+    const isHashed = this.password.startsWith("$2a$");
+
+    if (isHashed) {
+      // Password is already hashed, store it in history
+      this.passwordHistory.push({
+        hash: this.password,
+        createdAt: new Date(),
+      });
+    } else {
+      // Password is plaintext, hash it first then store in history
+      const hashedPassword = await bcrypt.hash(this.password, 12);
+      this.passwordHistory.push({
+        hash: hashedPassword,
+        createdAt: new Date(),
+      });
+    }
 
     // Keep only last 12 passwords
     if (this.passwordHistory.length > 12) {
@@ -126,8 +139,10 @@ userSchema.pre("save", async function (next) {
     }
   }
 
-  // Hash password with cost of 12
-  this.password = await bcrypt.hash(this.password, 12);
+  // Hash password with cost of 12 (only if not already hashed)
+  if (!this.password.startsWith("$2a$")) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
 
   // Update password last changed timestamp
   this.passwordLastChanged = new Date();
