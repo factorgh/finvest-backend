@@ -45,9 +45,11 @@ const userSchema = new mongoose.Schema(
     license: {
       type: String,
       unique: true,
-      default: function () {
+      default: async function () {
         const year = new Date().getFullYear();
-        return `CL-${year}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
+        const userCount = await this.constructor.countDocuments();
+        const nextNumber = userCount + 1;
+        return `CL-${year}${String(nextNumber).padStart(3, "0")}`;
       },
     },
     password: {
