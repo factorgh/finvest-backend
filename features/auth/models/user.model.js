@@ -46,7 +46,8 @@ const userSchema = new mongoose.Schema(
       type: String,
       unique: true,
       default: function () {
-        return `CL-${Math.floor(1000000 + Math.random() * 900000)}`;
+        const year = new Date().getFullYear();
+        return `CL-${year}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`;
       },
     },
     password: {
