@@ -116,6 +116,13 @@ app.use("/api/v1/uploads", uploadsRouter);
 // Aseets routes
 app.use("/api/v1/assets", assetsRoute);
 
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "success",
+    message: "API is running 🚀",
+  });
+});
+
 // Handle unknown routes
 app.all("*", (req, res, next) => {
   next(new Error(`Route ${req.originalUrl} not found`));
