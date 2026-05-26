@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import mongoose from "mongoose";
+import Counter from "./counter.model.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -104,14 +105,17 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
-// Generate license key before saving new user
+// Generate license key before saving new user (thread-safe sequential generator)
 userSchema.pre("save", async function (next) {
   if (this.isNew && !this.license) {
     try {
       const year = new Date().getFullYear();
-      const userCount = await this.constructor.countDocuments();
-      const nextNumber = userCount + 1;
-      this.license = `CL-${year}${String(nextNumber).padStart(3, "0")}`;
+      const counter = await Counter.findOneAndUpdate(
+        { id: "userLicense" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.license = `CL-${year}${String(counter.seq).padStart(3, "0")}`;
     } catch (err) {
       return next(err);
     }

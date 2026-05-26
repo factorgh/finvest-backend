@@ -54,6 +54,9 @@ mongoose
 // Initialize Express app
 const app = express();
 
+// Trust the first reverse proxy (Render, Heroku, etc.)
+app.set("trust proxy", 1);
+
 // Set scurity http
 app.use(helmet());
 
