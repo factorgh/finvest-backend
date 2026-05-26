@@ -62,7 +62,7 @@ const sanitizeInput = (input) => {
  * User signup
  */
 export const signup = catchAsync(async (req, res, next) => {
-  const { name, email, password, passwordConfirm } = req.body;
+  const { name, email, password, passwordConfirm, displayName } = req.body;
 
   // Required fields
   if (!name || !email || !password || !passwordConfirm) {
@@ -72,6 +72,7 @@ export const signup = catchAsync(async (req, res, next) => {
   // Basic sanitization
   const sanitizedName = name.trim();
   const sanitizedEmail = email.trim().toLowerCase();
+  const sanitizedDisplayName = displayName ? displayName.trim() : sanitizedName;
 
   // Basic email check
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -100,7 +101,7 @@ export const signup = catchAsync(async (req, res, next) => {
     email: sanitizedEmail,
     password,
     passwordConfirm,
-    displayName: sanitizedName,
+    displayName: sanitizedDisplayName,
   });
 
   createSendToken(newUser, 201, res);

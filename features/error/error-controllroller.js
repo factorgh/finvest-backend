@@ -10,7 +10,13 @@ const handleCastErrorDB = (err) => {
 
 const handleDuplicateFieldsDB = (err) => {
   let value = "unknown value"; // Fallback if no match found
-  if (typeof err.errmsg === "string") {
+  if (err.keyValue) {
+    const keys = Object.keys(err.keyValue);
+    const values = Object.values(err.keyValue);
+    if (keys.length > 0) {
+      value = `'${values[0]}' for field '${keys[0]}'`;
+    }
+  } else if (typeof err.errmsg === "string") {
     const match = err.errmsg.match(/(["'])(\\?.)*?\1/);
     if (match) {
       value = match[0];
@@ -65,18 +71,20 @@ export const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
 
-  if (process.env.NODE_ENV === "development") {
-    sendDevError(err, res);
-  } else if (process.env.NODE_ENV === "production") {
-    let error = { ...err };
-    error.message = err.message;
-    if (error.name === "CastError") error = handleCastErrorDB(error);
-    if (error.code === 11000) error = handleDuplicateFieldsDB(error);
-    if (error.name === "ValidationError")
-      error = handleValidationErrorDB(error);
-    if (error.name === "JsonWebTokenError") error = handleJwtError;
-    if (error.name === "TokenExpiredError") error = handleJwtExpiredError;
+  let error = { ...err };
+  error.message = err.message;
+  error.stack = err.stack;
 
+  if (error.name === "CastError") error = handleCastErrorDB(error);
+  if (error.code === 11000) error = handleDuplicateFieldsDB(error);
+  if (error.name === "ValidationError")
+    error = handleValidationErrorDB(error);
+  if (error.name === "JsonWebTokenError") error = handleJwtError;
+  if (error.name === "TokenExpiredError") error = handleJwtExpiredError;
+
+  if (process.env.NODE_ENV === "development") {
+    sendDevError(error, res);
+  } else if (process.env.NODE_ENV === "production") {
     sendProdError(error, res);
   }
 };
