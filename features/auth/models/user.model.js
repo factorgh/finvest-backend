@@ -45,12 +45,6 @@ const userSchema = new mongoose.Schema(
     license: {
       type: String,
       unique: true,
-      default: async function () {
-        const year = new Date().getFullYear();
-        const userCount = await this.constructor.countDocuments();
-        const nextNumber = userCount + 1;
-        return `CL-${year}${String(nextNumber).padStart(3, "0")}`;
-      },
     },
     password: {
       type: String,
@@ -110,6 +104,20 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+// Generate license key before saving new user
+userSchema.pre("save", async function (next) {
+  if (this.isNew && !this.license) {
+    try {
+      const year = new Date().getFullYear();
+      const userCount = await this.constructor.countDocuments();
+      const nextNumber = userCount + 1;
+      this.license = `CL-${year}${String(nextNumber).padStart(3, "0")}`;
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+});
 
 // Hash password before saving
 userSchema.pre("save", async function (next) {
