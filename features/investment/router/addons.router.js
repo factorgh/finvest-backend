@@ -2,6 +2,7 @@ import express from "express";
 import {
   addAddOnToInvestment,
   updateAddOnStatus,
+  deleteAddOn,
 } from "../controller/add_on_controller.js";
 
 const router = express.Router();
@@ -11,6 +12,6 @@ const router = express.Router();
 router.post("/", addAddOnToInvestment);
 // router.get("/:id", getOne);
 router.put("/single/:id", updateAddOnStatus);
-// router.delete("/:id", deleteOne);
+router.delete("/single/:id", deleteAddOn);
 
 export default router;

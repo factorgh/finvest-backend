@@ -53,3 +53,24 @@ export const updateAddOnStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+// Delete add on
+export const deleteAddOn = async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    const addOn = await AddOn.findByIdAndDelete(id);
+    if (!addOn) {
+      return res
+        .status(404)
+        .json({ status: "fail", message: "Add on not found" });
+    }
+    // Remove the reference from associated investments
+    await Investment.updateMany(
+      { addOns: id },
+      { $pull: { addOns: id } }
+    );
+    res.status(204).json({ status: "success", data: null });
+  } catch (error) {
+    next(error);
+  }
+};
