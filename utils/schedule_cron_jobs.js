@@ -46,6 +46,13 @@ const dailyAccruedReturnJob = () => {
           const addOnDays = currentDate.diff(moment(addOn.startDate), "days");
           if (addOnDays <= 0) continue;
 
+          // Only charge interest if amount is at least 5000 GHS
+          if (addOn.amount < 5000) {
+            addOn.accruedAddOnInterest = 0;
+            await addOn.save();
+            continue;
+          }
+
           const dailyAddOnReturn = calculateDailyRate(
             addOn.amount,
             investment.guaranteedRate,
@@ -54,11 +61,9 @@ const dailyAccruedReturnJob = () => {
 
           const addOnInterest = dailyAddOnReturn * addOnDays;
           addOn.accruedAddOnInterest = addOnInterest;
+          await addOn.save(); // Persist the add-on document update
           totalAddOnReturn += addOnInterest;
         }
-
-        // Save add-on updates (after loop to reduce save calls)
-        await investment.save();
 
         investment.addOnAccruedReturn = totalAddOnReturn;
 
