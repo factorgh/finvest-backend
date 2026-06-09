@@ -58,17 +58,54 @@ export const updateAddOnStatus = async (req, res, next) => {
 export const deleteAddOn = async (req, res, next) => {
   const { id } = req.params;
   try {
-    const addOn = await AddOn.findByIdAndDelete(id);
+    const addOn = await AddOn.findById(id);
     if (!addOn) {
       return res
         .status(404)
         .json({ status: "fail", message: "Add on not found" });
     }
-    // Remove the reference from associated investments
-    await Investment.updateMany(
-      { addOns: id },
-      { $pull: { addOns: id } }
-    );
+
+    // Find all investments referencing this addon and populate their addons to calculate updated totals
+    const investments = await Investment.find({ addOns: id }).populate("addOns");
+
+    for (const investment of investments) {
+      // Filter out the deleted addon from remaining list
+      const remainingAddOns = (investment.addOns || []).filter(
+        (addon) => String(addon._id) !== String(id)
+      );
+
+      // Sum accrued interest of remaining active addons
+      let totalAddOnReturn = 0;
+      for (const remainingAddOn of remainingAddOns) {
+        if (remainingAddOn.status === "active") {
+          totalAddOnReturn += remainingAddOn.accruedAddOnInterest || remainingAddOn.accruedInterest || 0;
+        }
+      }
+
+      // Update investment's list and accumulated addon return
+      investment.addOns = investment.addOns.filter(
+        (addonId) => String(addonId._id || addonId) !== String(id)
+      );
+      investment.addOnAccruedReturn = totalAddOnReturn;
+
+      // Recalculate other financial metrics (management fee, total accrued return)
+      const principalReturn = investment.principalAccruedReturn || 0;
+      const grossReturn = principalReturn + totalAddOnReturn;
+      const managementFee = (grossReturn * (investment.managementFeeRate || 0)) / 100;
+      investment.managementFee = managementFee;
+
+      investment.totalAccruedReturn =
+        grossReturn +
+        (investment.performanceYield || 0) -
+        (managementFee + (investment.operationalCost || 0));
+
+      investment.lastModified = new Date();
+      await investment.save();
+    }
+
+    // Delete the addon document
+    await AddOn.findByIdAndDelete(id);
+
     res.status(204).json({ status: "success", data: null });
   } catch (error) {
     next(error);
