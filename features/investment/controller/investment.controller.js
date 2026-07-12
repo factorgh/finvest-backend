@@ -7,6 +7,7 @@ import { calculateDynamicAccruedReturn } from "../../../utils/handle_dynamic_rat
 import User from "../../auth/models/user.model.js";
 import catchAsync from "../../error/catch-async-error.js";
 import Investment from "../model/investment.model.js";
+import { recalculateInvestment } from "../../../utils/recalculate.js";
 
 export const createInvestment = catchAsync(async (req, res, next) => {
   const {
@@ -95,6 +96,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
   };
 
   const newInvestment = await Investment.create(investmentDetails);
+  await recalculateInvestment(newInvestment._id);
 
   res.status(201).json({
     status: "success",
@@ -151,11 +153,8 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
     runValidators: true,
   }).populate([{ path: "owners.user" }, "addOns", "oneOffs", "userId"]);
 
-  if (!investment) {
-    return res.status(404).json({
-      status: "fail",
-      message: "Investment not found",
-    });
+  if (investment) {
+    await recalculateInvestment(investment._id);
   }
 
   res.status(200).json({
@@ -189,30 +188,28 @@ export const getInvestment = catchAsync(async (req, res, next) => {
 
 // Investment Rollovers
 export const rolloverInvestments = async () => {
-  const currentQuarter = getQuarter();
+  const currentDate = new Date();
+  const currentQuarterName = getQuarter(currentDate); // e.g., "2026-Q3"
+  const targetQuarterLabel = currentQuarterName.split("-")[1]; // e.g., "Q3"
 
-  const updatedQuarter = currentQuarter.split("-")[1];
-  console.log(`Updated quarter extracted: ${updatedQuarter}`);
-
-  const nextQuarter = getQuarter(
-    new Date(new Date().setMonth(new Date().getMonth() + 3))
-  );
+  const prevDate = new Date(currentDate);
+  prevDate.setMonth(prevDate.getMonth() - 3);
+  const sourceQuarterName = getQuarter(prevDate); // e.g., "2026-Q2"
+  const sourceQuarterLabel = sourceQuarterName.split("-")[1]; // e.g., "Q2"
 
   try {
-    // Find archived transactions for the current quarter
+    // Find archived transactions for the source/previous quarter
     const archivedTransactions = await Investment.find({
-      quarter: updatedQuarter,
+      quarter: sourceQuarterLabel,
       archived: true,
     });
     console.log(
-      `Archived transactions found for current quarter: ${currentQuarter}`
+      `Archived transactions found for source quarter ${sourceQuarterLabel}: ${archivedTransactions.length}`
     );
 
     console.log(
-      `Rollover started for current quarter: ${currentQuarter} and next quarter: ${nextQuarter}`
+      `Rollover started from source quarter: ${sourceQuarterLabel} to target quarter: ${targetQuarterLabel}`
     );
-
-    console.log("Archived transactions:", archivedTransactions);
 
     for (const transaction of archivedTransactions) {
       console.log(
@@ -223,13 +220,13 @@ export const rolloverInvestments = async () => {
       const updatedPrincipal =
         transaction.principal + transaction.totalAccruedReturn;
 
-      // Create a new transaction for the next quarter
+      // Create a new transaction for the target/current quarter
       const newTransaction = await Investment.create({
         userId: transaction.userId,
         name: transaction.name, // Preserve name
         principal: updatedPrincipal,
         accruedReturn: 0, // Reset accrued return
-        quarter: nextQuarter.split("-")[1],
+        quarter: targetQuarterLabel,
         transactionId: generateTransactionId(),
         startDate: new Date(), // Corrected startDate
         quarterEndDate: new Date(
@@ -246,14 +243,23 @@ export const rolloverInvestments = async () => {
         addOns: [],
         oneOffs: [],
         previousTransactionId: transaction._id, // Link to the archived transaction
+        owners: transaction.owners,
+        isJoint: transaction.isJoint,
+        guaranteedRate: transaction.guaranteedRate,
+        managementFeeRate: transaction.managementFeeRate,
+        operationalCost: transaction.operationalCost,
+        performanceYield: transaction.performanceYield,
       });
 
+      // Recalculate immediately for the new quarter investment
+      await recalculateInvestment(newTransaction._id);
+
       console.log(
-        `New transaction created for user ${transaction.userId} for ${nextQuarter} with ID ${newTransaction._id}`
+        `New transaction created for user ${transaction.userId} for ${targetQuarterLabel} with ID ${newTransaction._id}`
       );
     }
 
-    console.log("Rollover complete for current quarter:", currentQuarter);
+    console.log("Rollover complete for target quarter:", currentQuarterName);
   } catch (error) {
     console.error("Error during rollover process:", error.message || error);
     throw new Error("Rollover process failed");
@@ -262,17 +268,19 @@ export const rolloverInvestments = async () => {
 
 // Archiving of investors
 export const archiveTransactions = async () => {
-  const currentQuarter = getQuarter();
+  const currentDate = new Date();
+  const prevDate = new Date(currentDate);
+  prevDate.setMonth(prevDate.getMonth() - 3);
+  const sourceQuarterName = getQuarter(prevDate); // e.g., "2026-Q2"
+  const sourceQuarterLabel = sourceQuarterName.split("-")[1]; // e.g., "Q2"
+
   console.log(
-    `---------------------------------CURRENT QUARTER: ${currentQuarter}`
+    `---------------------------------ARCHIVING QUARTER: ${sourceQuarterName}`
   );
 
-  const updatedQuarter = currentQuarter.split("-")[1];
-  console.log(`Updated quarter extracted: ${updatedQuarter}`);
-
   try {
-    // Ensure there are no mismatches in quarter formatting or archived field state
-    const query = { quarter: updatedQuarter, archived: false };
+    // Query active, non-archived investments of the previous quarter
+    const query = { quarter: sourceQuarterLabel, archived: false };
     console.log(`Query:`, query);
 
     const result = await Investment.updateMany(query, {
@@ -287,7 +295,7 @@ export const archiveTransactions = async () => {
 
     if (result.matchedCount === 0) {
       console.warn(
-        `No transactions matched for quarter ${updatedQuarter}. Check your data.`
+        `No transactions matched for quarter ${sourceQuarterLabel}. Check your data.`
       );
     } else if (result.modifiedCount === 0) {
       console.warn(
@@ -295,7 +303,7 @@ export const archiveTransactions = async () => {
       );
     } else {
       console.log(
-        `Successfully archived ${result.modifiedCount} transactions for quarter ${currentQuarter}`
+        `Successfully archived ${result.modifiedCount} transactions for quarter ${sourceQuarterName}`
       );
     }
   } catch (error) {

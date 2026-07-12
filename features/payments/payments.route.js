@@ -14,9 +14,9 @@ const router = express.Router();
 // Payments routes
 router.get("/", getAllPayments);
 router.get("/user", verifyToken, getUserPayments); // Get payments by user ID
-router.post("/", createPayment);
+router.post("/", verifyToken, createPayment);
 router.get("/single/:id", getPayment);
-router.put("/single/:id", updatePayment);
-router.delete("/single/:id", deletePayment);
+router.put("/single/:id", verifyToken, updatePayment);
+router.delete("/single/:id", verifyToken, deletePayment);
 
 export default router;

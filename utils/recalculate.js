@@ -1,0 +1,93 @@
+import moment from "moment";
+import Investment from "../features/investment/model/investment.model.js";
+import { calculateDailyRate } from "./halper.js";
+import { getQuarterDetails } from "./handle_date_range.js";
+
+export const recalculateInvestment = async (investmentId) => {
+  try {
+    const investment = await Investment.findById(investmentId).populate([
+      "addOns",
+      "oneOffs",
+    ]);
+    if (!investment) {
+      console.warn(`[Recalculate] Investment ${investmentId} not found`);
+      return;
+    }
+
+    const currentDate = moment();
+    const quarterDays = getQuarterDetails();
+
+    const daysSinceStart = currentDate.diff(
+      moment(investment.startDate),
+      "days"
+    );
+
+    // ----- Principal Return Calculation -----
+    let principalReturn = 0;
+    if (daysSinceStart > 0) {
+      const principalDailyReturn = calculateDailyRate(
+        investment.principal,
+        investment.guaranteedRate,
+        quarterDays
+      );
+      principalReturn = principalDailyReturn * daysSinceStart;
+    }
+    investment.principalAccruedReturn = principalReturn;
+
+    // ----- Add-on Interest Calculation -----
+    let totalAddOnReturn = 0;
+    for (const addOn of investment.addOns) {
+      if (addOn.status !== "active") continue;
+
+      const addOnDays = currentDate.diff(moment(addOn.startDate), "days");
+      if (addOnDays <= 0) {
+        addOn.accruedAddOnInterest = 0;
+        await addOn.save();
+        continue;
+      }
+
+      // Only charge interest if amount is at least 5000 GHS
+      if (addOn.amount < 5000) {
+        addOn.accruedAddOnInterest = 0;
+        await addOn.save();
+        continue;
+      }
+
+      const dailyAddOnReturn = calculateDailyRate(
+        addOn.amount,
+        investment.guaranteedRate,
+        quarterDays
+      );
+
+      const addOnInterest = dailyAddOnReturn * addOnDays;
+      addOn.accruedAddOnInterest = addOnInterest;
+      await addOn.save(); // Persist the add-on document update
+      totalAddOnReturn += addOnInterest;
+    }
+
+    investment.addOnAccruedReturn = totalAddOnReturn;
+
+    // ----- Service Fee Calculation -----
+    const grossReturn = principalReturn + totalAddOnReturn;
+    const managementFee =
+      (grossReturn * investment.managementFeeRate) / 100;
+    investment.managementFee = managementFee;
+
+    // ----- Total Accrued Return -----
+    investment.totalAccruedReturn =
+      grossReturn +
+      investment.performanceYield -
+      (managementFee + investment.operationalCost);
+
+    await investment.save();
+    console.log(
+      `[Recalculate] Updated investment ${investment._id} | Principal: ${principalReturn.toFixed(
+        2
+      )}, Add-ons: ${totalAddOnReturn.toFixed(
+        2
+      )}, Total: ${investment.totalAccruedReturn.toFixed(2)}`
+    );
+  } catch (error) {
+    console.error("[Recalculate] Error recalculating investment:", error.message || error);
+  }
+};

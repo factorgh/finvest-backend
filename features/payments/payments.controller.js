@@ -5,7 +5,8 @@ import Investment from "../investment/model/investment.model.js";
 
 import PaymentModel from "./payments.model.js";
 
-// export const createPayment = createOne(PaymentModel);
+import ActivityLog from "../activity-log/activity.model.js";
+import { recalculateInvestment } from "../../utils/recalculate.js";
 
 // Create payment handler
 export const createPayment = catchAsync(async (req, res, next) => {
@@ -38,7 +39,21 @@ export const createPayment = catchAsync(async (req, res, next) => {
   // Step 5: Save the updated investment
   await investment.save();
 
-  // Step 6: Return success response
+  // Step 6: Trigger recalculation
+  await recalculateInvestment(investment._id);
+
+  // Step 7: Log activity
+  try {
+    await ActivityLog.create({
+      user: req.user?._id || user,
+      activity: "Payment Created",
+      description: `A payment entry of GHS ${amount} was created for user ${user}.`,
+    });
+  } catch (err) {
+    console.error("Activity logging failed:", err);
+  }
+
+  // Step 8: Return success response
   res.status(201).json({
     status: "success",
     data: {
@@ -47,8 +62,78 @@ export const createPayment = catchAsync(async (req, res, next) => {
   });
 });
 
-export const deletePayment = deleteOne(PaymentModel);
-export const updatePayment = updateOne(PaymentModel);
+export const deletePayment = catchAsync(async (req, res, next) => {
+  const doc = await PaymentModel.findByIdAndDelete(req.params.id);
+
+  if (!doc) {
+    return next(new AppError("No document found with that ID", 404));
+  }
+
+  // Adjust principal and recalculate
+  const investment = await Investment.findOne({ userId: doc.user });
+  if (investment) {
+    investment.principal += doc.amount;
+    await investment.save();
+    await recalculateInvestment(investment._id);
+  }
+
+  // Log activity
+  try {
+    await ActivityLog.create({
+      user: req.user?._id || doc.user,
+      activity: "Payment Deleted",
+      description: `A payment entry of GHS ${doc.amount} was deleted for user ${doc.user}. Principal restored.`,
+    });
+  } catch (err) {
+    console.error("Activity logging failed:", err);
+  }
+
+  res.status(204).json({
+    status: "success",
+    data: null,
+  });
+});
+
+export const updatePayment = catchAsync(async (req, res, next) => {
+  const oldDoc = await PaymentModel.findById(req.params.id);
+  if (!oldDoc) {
+    return next(new AppError("No document found with that ID", 404));
+  }
+
+  const doc = await PaymentModel.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+
+  // Adjust principal if amount changed
+  if (req.body.amount !== undefined && req.body.amount !== oldDoc.amount) {
+    const diff = req.body.amount - oldDoc.amount;
+    const investment = await Investment.findOne({ userId: doc.user });
+    if (investment) {
+      investment.principal -= diff;
+      await investment.save();
+      await recalculateInvestment(investment._id);
+    }
+  }
+
+  // Log activity
+  try {
+    await ActivityLog.create({
+      user: req.user?._id || doc.user,
+      activity: "Payment Updated",
+      description: `A payment entry was updated for user ${doc.user}. New amount: GHS ${doc.amount}.`,
+    });
+  } catch (err) {
+    console.error("Activity logging failed:", err);
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      data: doc,
+    },
+  });
+});
 //
 export const getAllPayments = catchAsync(async (req, res, next) => {
   const payments = await PaymentModel.find()

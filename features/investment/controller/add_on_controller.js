@@ -1,5 +1,6 @@
 import { AddOn } from "../model/add_on.model.js";
 import Investment from "../model/investment.model.js";
+import { recalculateInvestment } from "../../../utils/recalculate.js";
 
 export const addAddOnToInvestment = async (req, res, next) => {
   const { amount, investmentId, status } = req.body;
@@ -28,6 +29,8 @@ export const addAddOnToInvestment = async (req, res, next) => {
 
     await investment.save();
 
+    await recalculateInvestment(investmentId);
+
     res.status(200).json({ status: "success", data: investment });
   } catch (error) {
     next(error);
@@ -48,6 +51,12 @@ export const updateAddOnStatus = async (req, res, next) => {
     addOn.status = status;
     addOn.startDate = startDate;
     await addOn.save();
+
+    const investment = await Investment.findOne({ addOns: id });
+    if (investment) {
+      await recalculateInvestment(investment._id);
+    }
+
     res.status(200).json({ status: "success", data: addOn });
   } catch (error) {
     next(error);
@@ -101,6 +110,7 @@ export const deleteAddOn = async (req, res, next) => {
 
       investment.lastModified = new Date();
       await investment.save();
+      await recalculateInvestment(investment._id);
     }
 
     // Delete the addon document

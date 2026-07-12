@@ -14,9 +14,9 @@ const router = express.Router();
 // Withdrawals routes
 router.get("/", getAllWithdrawals);
 router.get("/user", verifyToken, getUserWithdrawals); // Get withdrawals by user ID
-router.post("/", createWithdrawal);
+router.post("/", verifyToken, createWithdrawal);
 router.get("/single/:id", getWithdrawal);
-router.put("/single/:id", updateWithdrawal);
-router.delete("/single/:id", deleteWithdrawal);
+router.put("/single/:id", verifyToken, updateWithdrawal);
+router.delete("/single/:id", verifyToken, deleteWithdrawal);
 
 export default router;
