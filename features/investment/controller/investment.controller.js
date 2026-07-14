@@ -106,13 +106,15 @@ export const createInvestment = catchAsync(async (req, res, next) => {
 
 // Get all user investements
 export const getAllInvestments = catchAsync(async (req, res, next) => {
-  // Find user and populate investments
-  const investments = await Investment.find().populate([
-    "addOns",
-    "oneOffs",
-    "userId",
-    { path: "owners.user" },
-  ]);
+  // Find user and populate investments, including hidden archive/active fields
+  const investments = await Investment.find()
+    .select("+archived +active")
+    .populate([
+      "addOns",
+      "oneOffs",
+      "userId",
+      { path: "owners.user" },
+    ]);
   if (!investments) {
     return res.status(404).json({ status: "fail", message: "No investments" });
   }
@@ -168,10 +170,12 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
 export const getInvestment = catchAsync(async (req, res, next) => {
   const userId = req.user._id;
   console.log("some user", userId);
-  // Ensure the investment belongs to the user
+  // Ensure the investment belongs to the user and include archived/active flags
   const investment = await Investment.find({
     "owners.user": userId,
-  }).populate(["addOns", "oneOffs", { path: "owners.user" }]);
+  })
+    .select("+archived +active")
+    .populate(["addOns", "oneOffs", { path: "owners.user" }]);
 
   if (!investment) {
     return res.status(404).json({
