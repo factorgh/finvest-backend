@@ -3,14 +3,35 @@ import moment from "moment";
 import Investment from "../features/investment/model/investment.model.js";
 import { calculateDailyRate } from "./halper.js";
 import { getQuarterDetails } from "./handle_date_range.js";
+import {
+  archiveTransactions,
+  rolloverInvestments,
+} from "../features/investment/controller/investment.controller.js";
 
 const dailyAccruedReturnJob = () => {
+  // Run on startup to check for pending previous quarter archives and rollovers
+  (async () => {
+    try {
+      console.log("[Startup] Checking for pending previous quarter archives and rollovers...");
+      await archiveTransactions();
+      await rolloverInvestments();
+      console.log("[Startup] Startup quarter check and rollover complete.");
+    } catch (err) {
+      console.error("[Startup] Error during startup archive/rollover check:", err.message);
+    }
+  })();
+
   cron.schedule("0 0 * * *", async () => {
     console.log(
       "[AccruedReturnJob] Starting daily return calculation at midnight..."
     );
 
     try {
+      console.log("[AccruedReturnJob] Checking for pending previous quarter archives and rollovers...");
+      await archiveTransactions();
+      await rolloverInvestments();
+      console.log("[AccruedReturnJob] Quarter check and rollover complete.");
+
       const currentDate = moment();
       const quarterDays = getQuarterDetails();
 
@@ -74,10 +95,12 @@ const dailyAccruedReturnJob = () => {
         investment.managementFee = managementFee;
 
         // ----- Total Accrued Return -----
-        investment.totalAccruedReturn =
+        investment.totalAccruedReturn = Math.max(
           grossReturn +
           investment.performanceYield -
-          (managementFee + investment.operationalCost);
+          (managementFee + investment.operationalCost),
+          0
+        );
 
         await investment.save();
 

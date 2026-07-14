@@ -226,6 +226,17 @@ export const rolloverInvestments = async () => {
         `Processing archived transaction for user ${transaction.userId} with ID ${transaction._id}`,
       );
 
+      // Prevent duplicate rollovers of the same transaction
+      const existingRollover = await Investment.findOne({
+        previousTransactionId: transaction._id,
+      });
+      if (existingRollover) {
+        console.log(
+          `Transaction for user ${transaction.userId} (ID: ${transaction._id}) has already been rolled over to ${existingRollover._id}`
+        );
+        continue;
+      }
+
       // Calculate new principal
       const updatedPrincipal =
         transaction.principal + transaction.totalAccruedReturn;

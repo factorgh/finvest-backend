@@ -74,10 +74,12 @@ export const recalculateInvestment = async (investmentId) => {
     investment.managementFee = managementFee;
 
     // ----- Total Accrued Return -----
-    investment.totalAccruedReturn =
+    investment.totalAccruedReturn = Math.max(
       grossReturn +
       investment.performanceYield -
-      (managementFee + investment.operationalCost);
+      (managementFee + investment.operationalCost),
+      0
+    );
 
     await investment.save();
     console.log(
