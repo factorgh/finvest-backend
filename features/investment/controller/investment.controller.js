@@ -43,7 +43,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
       principal,
       creationDate,
       quarterEndDate,
-      guaranteedRate
+      guaranteedRate,
     )) || 0;
 
   const totalAccrued = principalAccruedReturn + performanceYield;
@@ -57,7 +57,7 @@ export const createInvestment = catchAsync(async (req, res, next) => {
   const totalAccruedReturn = transformedTotalAccrued - managementFeeTotal;
   const transformedTotalAccruedReturn = Math.max(
     Number(totalAccruedReturn) || 0,
-    0
+    0,
   );
 
   // Build owners: always include primary user, exclude primary from co-owners, and dedupe
@@ -109,12 +109,7 @@ export const getAllInvestments = catchAsync(async (req, res, next) => {
   // Find user and populate investments, including hidden archive/active fields
   const investments = await Investment.find()
     .select("+archived +active")
-    .populate([
-      "addOns",
-      "oneOffs",
-      "userId",
-      { path: "owners.user" },
-    ]);
+    .populate(["addOns", "oneOffs", "userId", { path: "owners.user" }]);
   if (!investments) {
     return res.status(404).json({ status: "fail", message: "No investments" });
   }
@@ -132,7 +127,9 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
   const updateData = req.body;
 
   // Permission: allow if requester is owner or admin/superadmin
-  const existing = await Investment.findById(investmentId).populate({ path: "owners.user" });
+  const existing = await Investment.findById(investmentId).populate({
+    path: "owners.user",
+  });
   if (!existing) {
     return res.status(404).json({
       status: "fail",
@@ -140,20 +137,29 @@ export const updateInvestment = catchAsync(async (req, res, next) => {
     });
   }
   if (!req.user) {
-    return res.status(401).json({ status: "fail", message: "Not authenticated" });
+    return res
+      .status(401)
+      .json({ status: "fail", message: "Not authenticated" });
   }
-  const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
+  const isAdmin =
+    req.user && (req.user.role === "admin" || req.user.role === "superadmin");
   const requesterId = req.user._id;
-  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(requesterId));
+  const isOwner = existing.owners?.some(
+    (o) => String(o.user?._id || o.user) === String(requesterId),
+  );
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ status: "fail", message: "Not authorized" });
   }
 
   // Update the investment and return the updated document
-  const investment = await Investment.findByIdAndUpdate(investmentId, updateData, {
-    new: true,
-    runValidators: true,
-  }).populate([{ path: "owners.user" }, "addOns", "oneOffs", "userId"]);
+  const investment = await Investment.findByIdAndUpdate(
+    investmentId,
+    updateData,
+    {
+      new: true,
+      runValidators: true,
+    },
+  ).populate([{ path: "owners.user" }, "addOns", "oneOffs", "userId"]);
 
   if (investment) {
     await recalculateInvestment(investment._id);
@@ -208,16 +214,16 @@ export const rolloverInvestments = async () => {
       archived: true,
     });
     console.log(
-      `Archived transactions found for source quarter ${sourceQuarterLabel}: ${archivedTransactions.length}`
+      `Archived transactions found for source quarter ${sourceQuarterLabel}: ${archivedTransactions.length}`,
     );
 
     console.log(
-      `Rollover started from source quarter: ${sourceQuarterLabel} to target quarter: ${targetQuarterLabel}`
+      `Rollover started from source quarter: ${sourceQuarterLabel} to target quarter: ${targetQuarterLabel}`,
     );
 
     for (const transaction of archivedTransactions) {
       console.log(
-        `Processing archived transaction for user ${transaction.userId} with ID ${transaction._id}`
+        `Processing archived transaction for user ${transaction.userId} with ID ${transaction._id}`,
       );
 
       // Calculate new principal
@@ -235,8 +241,8 @@ export const rolloverInvestments = async () => {
         startDate: new Date(), // Corrected startDate
         quarterEndDate: new Date(
           new Date(transaction.quarterEndDate).setMonth(
-            new Date(transaction.quarterEndDate).getMonth() + 3
-          )
+            new Date(transaction.quarterEndDate).getMonth() + 3,
+          ),
         ),
         archived: false,
         active: true,
@@ -259,7 +265,7 @@ export const rolloverInvestments = async () => {
       await recalculateInvestment(newTransaction._id);
 
       console.log(
-        `New transaction created for user ${transaction.userId} for ${targetQuarterLabel} with ID ${newTransaction._id}`
+        `New transaction created for user ${transaction.userId} for ${targetQuarterLabel} with ID ${newTransaction._id}`,
       );
     }
 
@@ -279,7 +285,7 @@ export const archiveTransactions = async () => {
   const sourceQuarterLabel = sourceQuarterName.split("-")[1]; // e.g., "Q2"
 
   console.log(
-    `---------------------------------ARCHIVING QUARTER: ${sourceQuarterName}`
+    `---------------------------------ARCHIVING QUARTER: ${sourceQuarterName}`,
   );
 
   try {
@@ -292,22 +298,22 @@ export const archiveTransactions = async () => {
     });
 
     console.log(
-      `---------------------------------ARCHIVED TRANSACTIONS --------------------------------`
+      `---------------------------------ARCHIVED TRANSACTIONS --------------------------------`,
     );
     console.log(`Matched ${result.matchedCount} transactions`);
     console.log(`Modified ${result.modifiedCount} transactions`);
 
     if (result.matchedCount === 0) {
       console.warn(
-        `No transactions matched for quarter ${sourceQuarterLabel}. Check your data.`
+        `No transactions matched for quarter ${sourceQuarterLabel}. Check your data.`,
       );
     } else if (result.modifiedCount === 0) {
       console.warn(
-        `Transactions were matched but not updated. This could indicate no active transactions for the quarter.`
+        `Transactions were matched but not updated. This could indicate no active transactions for the quarter.`,
       );
     } else {
       console.log(
-        `Successfully archived ${result.modifiedCount} transactions for quarter ${sourceQuarterName}`
+        `Successfully archived ${result.modifiedCount} transactions for quarter ${sourceQuarterName}`,
       );
     }
   } catch (error) {
@@ -318,18 +324,25 @@ export const archiveTransactions = async () => {
 
 export const deleteInvestment = catchAsync(async (req, res, nex) => {
   const { id } = req.params;
-  const existing = await Investment.findById(id).populate({ path: "owners.user" });
+  const existing = await Investment.findById(id).populate({
+    path: "owners.user",
+  });
   if (!existing) {
     return res
       .status(404)
       .json({ status: "fail", message: "Investment not found" });
   }
   if (!req.user) {
-    return res.status(401).json({ status: "fail", message: "Not authenticated" });
+    return res
+      .status(401)
+      .json({ status: "fail", message: "Not authenticated" });
   }
-  const isAdmin = req.user && (req.user.role === "admin" || req.user.role === "superadmin");
+  const isAdmin =
+    req.user && (req.user.role === "admin" || req.user.role === "superadmin");
   const requesterId = req.user._id;
-  const isOwner = existing.owners?.some((o) => String(o.user?._id || o.user) === String(requesterId));
+  const isOwner = existing.owners?.some(
+    (o) => String(o.user?._id || o.user) === String(requesterId),
+  );
   if (!isAdmin && !isOwner) {
     return res.status(403).json({ status: "fail", message: "Not authorized" });
   }
