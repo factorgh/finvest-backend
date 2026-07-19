@@ -123,3 +123,27 @@ export const getQuarterDetails = (date = new Date()) => {
 
   return daysInQuarter;
 };
+
+export const calculateDays30360 = (startDate, endDate) => {
+  const start = moment(startDate);
+  const end = moment(endDate);
+
+  let y1 = start.year();
+  let m1 = start.month() + 1; // 1-12
+  let d1 = start.date();
+
+  let y2 = end.year();
+  let m2 = end.month() + 1; // 1-12
+  let d2 = end.date();
+
+  if (d1 === 31) {
+    d1 = 30;
+  }
+  if (d2 === 31 && d1 >= 30) {
+    d2 = 30;
+  }
+
+  const days = 360 * (y2 - y1) + 30 * (m2 - m1) + (d2 - d1);
+  return Math.max(0, days);
+};
+

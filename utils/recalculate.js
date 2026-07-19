@@ -1,7 +1,7 @@
 import moment from "moment";
 import Investment from "../features/investment/model/investment.model.js";
 import { calculateDailyRate } from "./halper.js";
-import { getQuarterDetails } from "./handle_date_range.js";
+import { calculateDays30360 } from "./handle_date_range.js";
 
 export const recalculateInvestment = async (investmentId) => {
   try {
@@ -15,11 +15,13 @@ export const recalculateInvestment = async (investmentId) => {
     }
 
     const currentDate = moment();
-    const quarterDays = getQuarterDetails();
+    const calculationEndDate = moment.min(currentDate, moment(investment.quarterEndDate));
+    const quarterDays = 90;
 
-    const daysSinceStart = currentDate.diff(
-      moment(investment.startDate),
-      "days"
+    const daysSinceStart = calculateDays30360(investment.startDate, calculationEndDate);
+
+    console.log(
+      `[Day Count Log] Investment ID: ${investmentId} | Start Date: ${moment(investment.startDate).format("YYYY-MM-DD")} | End Date: ${calculationEndDate.format("YYYY-MM-DD")} | Resulting Day Count: ${daysSinceStart}`
     );
 
     // ----- Principal Return Calculation -----
@@ -39,7 +41,13 @@ export const recalculateInvestment = async (investmentId) => {
     for (const addOn of investment.addOns) {
       if (addOn.status !== "active") continue;
 
-      const addOnDays = currentDate.diff(moment(addOn.startDate), "days");
+      const addOnEndDate = moment.min(currentDate, moment(investment.quarterEndDate));
+      const addOnDays = calculateDays30360(addOn.startDate, addOnEndDate);
+
+      console.log(
+        `[Day Count Log] AddOn ID: ${addOn._id} | Start Date: ${moment(addOn.startDate).format("YYYY-MM-DD")} | End Date: ${addOnEndDate.format("YYYY-MM-DD")} | Resulting Day Count: ${addOnDays}`
+      );
+
       if (addOnDays <= 0) {
         addOn.accruedAddOnInterest = 0;
         await addOn.save();
