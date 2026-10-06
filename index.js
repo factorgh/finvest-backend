@@ -17,8 +17,6 @@ import { errorHandler } from "./features/error/error-controllroller.js";
 import addOnRoute from "./features/investment/router/addons.router.js";
 import investmentRoute from "./features/investment/router/investment.router.js";
 import oneOffRoute from "./features/investment/router/one_offs.router.js";
-import "./utils/schedule_cron_jobs.js";
-
 import activityLogRouter from "./features/activity-log/activity.routes.js";
 import loanRouter from "./features/loans/loans.routes.js";
 import notificationRouter from "./features/notifications/routes/notification.js";
@@ -30,15 +28,6 @@ import dailyRentalUpdates from "./utils/rental-cron.js";
 import dailyAccruedReturnJob from "./utils/schedule_cron_jobs.js";
 import uploadsRouter from "./utils/uploads/uploads.route.js";
 
-// Cron job for daily accrued returns
-dailyAccruedReturnJob();
-
-// Cron job loans
-dailyLoanDeductions();
-
-// Cron job rentals
-dailyRentalUpdates();
-
 // Handle uncaught exceptions
 process.on("uncaughtException", (err) => {
   console.error("Uncaught Exception:", err);
@@ -47,12 +36,22 @@ process.on("uncaughtException", (err) => {
 
 // Database connection
 mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => console.log("DB connected"))
+  .connect(process.env.MONGODB_URI, {
+    serverSelectionTimeoutMS: 30000,
+  })
+  .then(() => {
+    console.log("DB connected successfully");
+
+    // Start background cron jobs after DB connection
+    dailyAccruedReturnJob();
+    dailyLoanDeductions();
+    dailyRentalUpdates();
+  })
   .catch((err) => console.error("DB connection error:", err));
 
 // Initialize Express app
 const app = express();
+
 
 // Trust the first reverse proxy (Render, Heroku, etc.)
 app.set("trust proxy", 1);

@@ -118,8 +118,8 @@ const InvestmentSchema = new mongoose.Schema(
 InvestmentSchema.index({ userId: 1 });
 InvestmentSchema.index({ "owners.user": 1 });
 InvestmentSchema.index({ quarter: 1 });
-InvestmentSchema.index({ transactionId: 1 }, { unique: true });
 
 const Investment = model("Investment", InvestmentSchema);
 
 export default Investment;
+
