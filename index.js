@@ -1,4 +1,13 @@
 import "dotenv/config";
+import dns from "node:dns";
+
+// Fix for queryTxt ETIMEOUT with mongodb+srv connections on macOS/local network
+try {
+  dns.setServers(["8.8.8.8", "8.8.4.4", "1.1.1.1"]);
+} catch (err) {
+  console.warn("Could not set DNS servers:", err.message);
+}
+
 import bodyParser from "body-parser";
 import cors from "cors";
 import express from "express";
@@ -8,6 +17,7 @@ import helmet from "helmet";
 import hpp from "hpp";
 import mongoose from "mongoose";
 import morgan from "morgan";
+
 
 import xss from "xss-clean";
 import assetsRoute from "./features/assets/route/assets_route.js";
@@ -34,20 +44,27 @@ process.on("uncaughtException", (err) => {
   process.exit(1);
 });
 
-// Database connection
-mongoose
-  .connect(process.env.MONGODB_URI, {
-    serverSelectionTimeoutMS: 30000,
-  })
-  .then(() => {
+// Database connection with automatic retry
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 30000,
+    });
     console.log("DB connected successfully");
 
     // Start background cron jobs after DB connection
     dailyAccruedReturnJob();
     dailyLoanDeductions();
     dailyRentalUpdates();
-  })
-  .catch((err) => console.error("DB connection error:", err));
+  } catch (err) {
+    console.error("DB connection error:", err);
+    console.log("Retrying DB connection in 5 seconds...");
+    setTimeout(connectDB, 5000);
+  }
+};
+
+connectDB();
+
 
 // Initialize Express app
 const app = express();
