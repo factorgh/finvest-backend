@@ -102,6 +102,10 @@ const userSchema = new mongoose.Schema(
       default: true,
       select: false,
     },
+    seenTours: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true },
 );

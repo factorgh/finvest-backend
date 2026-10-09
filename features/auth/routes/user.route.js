@@ -7,10 +7,18 @@ import {
   getAllAdmin,
   updateMe,
   updateUser,
+  getSeenTours,
+  markTourSeen,
+  resetSeenTours,
 } from "../controllers/user.controller.js";
 import { verifyToken } from "../middleware/verification.js";
 
 const router = express.Router();
+
+// tour routes
+router.get("/tours", verifyToken, getSeenTours);
+router.post("/tours/seen", verifyToken, markTourSeen);
+router.post("/tours/reset", verifyToken, resetSeenTours);
 
 // user routes
 router.get("/", getAll);

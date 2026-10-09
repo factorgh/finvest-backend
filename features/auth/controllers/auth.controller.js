@@ -356,6 +356,7 @@ export const getProfile = catchAsync(async (req, res, next) => {
         email: user.email,
         displayName: user.displayName,
         role: user.role,
+        seenTours: user.seenTours || [],
         createdAt: user.createdAt,
         lastLogin: user.lastLogin,
       },

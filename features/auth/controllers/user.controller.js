@@ -91,7 +91,50 @@ export const updateUser = catchAsync(async (req, res, next) => {
   });
 });
 
-// export const getMe = (req, res, next) => {
-//   req.params.id = req.user.id;
-//   next();
-// };
+// Tour tracking controllers
+export const getSeenTours = catchAsync(async (req, res, next) => {
+  const userId = req.user?.id || req.user?._id;
+  const user = await User.findById(userId).select("seenTours");
+  res.status(200).json({
+    status: "success",
+    seenTours: user?.seenTours || [],
+  });
+});
+
+export const markTourSeen = catchAsync(async (req, res, next) => {
+  const userId = req.user?.id || req.user?._id;
+  const { tourKey } = req.body;
+  if (!tourKey) {
+    return next(new AppError("Please provide a tourKey", 400));
+  }
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { $addToSet: { seenTours: tourKey } },
+    { new: true, runValidators: true }
+  ).select("seenTours");
+
+  res.status(200).json({
+    status: "success",
+    seenTours: user?.seenTours || [],
+  });
+});
+
+export const resetSeenTours = catchAsync(async (req, res, next) => {
+  const userId = req.user?.id || req.user?._id;
+  const { tourKey } = req.body || {};
+  const update =
+    tourKey && tourKey !== "all"
+      ? { $pull: { seenTours: tourKey } }
+      : { $set: { seenTours: [] } };
+
+  const user = await User.findByIdAndUpdate(userId, update, {
+    new: true,
+    runValidators: true,
+  }).select("seenTours");
+
+  res.status(200).json({
+    status: "success",
+    seenTours: user?.seenTours || [],
+  });
+});
