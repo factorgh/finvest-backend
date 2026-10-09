@@ -1,123 +1,24 @@
 import cron from "node-cron";
-import moment from "moment";
-import Investment from "../features/investment/model/investment.model.js";
-import { calculateDailyRate } from "./halper.js";
-import { getQuarterDetails } from "./handle_date_range.js";
-import {
-  archiveTransactions,
-  rolloverInvestments,
-} from "../features/investment/controller/investment.controller.js";
+import { calculateDailyAccruals } from "../features/investment/controller/investment.controller.js";
 
+/**
+ * Daily Accrued Return Job
+ * Runs internal cron at midnight (00:00 every day) for standalone server deployments.
+ * Reuses the central calculateDailyAccruals calculation engine.
+ */
 const dailyAccruedReturnJob = () => {
-  // Run on startup to check for pending previous quarter archives and rollovers
-  (async () => {
-    try {
-      console.log("[Startup] Checking for pending previous quarter archives and rollovers...");
-      await archiveTransactions();
-      await rolloverInvestments();
-      console.log("[Startup] Startup quarter check and rollover complete.");
-    } catch (err) {
-      console.error("[Startup] Error during startup archive/rollover check:", err.message);
-    }
-  })();
-
   cron.schedule("0 0 * * *", async () => {
     console.log(
-      "[AccruedReturnJob] Starting daily return calculation at midnight..."
+      "[AccruedReturnJob] Starting automated daily accruals calculation at midnight..."
     );
 
     try {
-      console.log("[AccruedReturnJob] Checking for pending previous quarter archives and rollovers...");
-      await archiveTransactions();
-      await rolloverInvestments();
-      console.log("[AccruedReturnJob] Quarter check and rollover complete.");
-
-      const currentDate = moment();
-      const quarterDays = getQuarterDetails();
-
-      const investments = await Investment.find().populate([
-        "addOns",
-        "oneOffs",
-      ]);
+      const result = await calculateDailyAccruals();
       console.log(
-        `[AccruedReturnJob] Processing ${investments.length} investment(s)`
+        `[AccruedReturnJob] Successfully processed ${result.mandatesUpdated} active mandate(s). Net Accrued: GHS ${result.totalNetAccrued?.toFixed(2)}`
       );
-
-      for (const investment of investments) {
-        const daysSinceStart = currentDate.diff(
-          moment(investment.startDate),
-          "days"
-        );
-        if (daysSinceStart <= 0) continue;
-
-        // ----- Principal Return Calculation -----
-        const principalDailyReturn = calculateDailyRate(
-          investment.principal,
-          investment.guaranteedRate,
-          quarterDays
-        );
-        const principalReturn = principalDailyReturn * daysSinceStart;
-        investment.principalAccruedReturn = principalReturn;
-
-        // ----- Add-on Interest Calculation -----
-        let totalAddOnReturn = 0;
-        for (const addOn of investment.addOns) {
-          if (addOn.status !== "active") continue;
-
-          const addOnDays = currentDate.diff(moment(addOn.startDate), "days");
-          if (addOnDays <= 0) continue;
-
-          // Only charge interest if amount is at least 5000 GHS
-          if (addOn.amount < 5000) {
-            addOn.accruedAddOnInterest = 0;
-            await addOn.save();
-            continue;
-          }
-
-          const dailyAddOnReturn = calculateDailyRate(
-            addOn.amount,
-            investment.guaranteedRate,
-            quarterDays
-          );
-
-          const addOnInterest = dailyAddOnReturn * addOnDays;
-          addOn.accruedAddOnInterest = addOnInterest;
-          await addOn.save(); // Persist the add-on document update
-          totalAddOnReturn += addOnInterest;
-        }
-
-        investment.addOnAccruedReturn = totalAddOnReturn;
-
-        // ----- Management Fee Calculation -----
-        const grossReturn = principalReturn + totalAddOnReturn;
-        const managementFee =
-          (grossReturn * investment.managementFeeRate) / 100;
-        investment.managementFee = managementFee;
-
-        // ----- Total Accrued Return -----
-        investment.totalAccruedReturn = Math.max(
-          grossReturn +
-          investment.performanceYield -
-          (managementFee + investment.operationalCost),
-          0
-        );
-
-        await investment.save();
-
-        console.log(
-          `[AccruedReturnJob] Updated investment ${
-            investment._id
-          } | Principal: ${principalReturn.toFixed(
-            2
-          )}, Add-ons: ${totalAddOnReturn.toFixed(
-            2
-          )}, Total: ${investment.totalAccruedReturn.toFixed(2)}`
-        );
-      }
-
-      console.log("[AccruedReturnJob] Daily return calculation completed.");
     } catch (error) {
-      console.error("[AccruedReturnJob] Error:", error.message);
+      console.error("[AccruedReturnJob] Error calculating daily accruals:", error.message);
     }
   });
 };

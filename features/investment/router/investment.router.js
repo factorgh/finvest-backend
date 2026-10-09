@@ -11,9 +11,13 @@ import {
   getRolloverCandidates,
   executeSingleRollover,
   executeBatchRollover,
+  calculateDailyAccruals,
 } from "../controller/investment.controller.js";
 
 const router = express.Router();
+
+// Accruals calculation endpoint (callable by external cron or admin)
+router.all("/accruals/calculate", calculateDailyAccruals);
 
 // manual rollover routes
 router.get("/rollover/candidates", verifyToken, getRolloverCandidates);

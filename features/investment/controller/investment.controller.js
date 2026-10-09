@@ -1,7 +1,9 @@
-import { generateTransactionId } from "../../../utils/halper.js";
+import moment from "moment";
+import { generateTransactionId, calculateDailyRate } from "../../../utils/halper.js";
 import {
   getQuarter,
   getQuarterEndDate,
+  getQuarterDetails,
 } from "../../../utils/handle_date_range.js";
 import { calculateDynamicAccruedReturn } from "../../../utils/handle_dynamic_rate.js";
 import User from "../../auth/models/user.model.js";
@@ -683,3 +685,187 @@ export const executeBatchRollover = catchAsync(async (req, res, next) => {
     },
   });
 });
+
+/**
+ * Daily Accruals Calculation
+ * Callable via:
+ * 1. Dedicated Cron API: POST /api/v1/investments/accruals/calculate
+ * 2. Authenticated Admin: verifyToken with admin or superadmin
+ * 3. External Cron Scheduler: header 'x-cron-secret' or '?secret=' matching CRON_SECRET
+ * 4. Internal Background Worker / node-cron
+ */
+export const calculateDailyAccruals = async (req, res, next) => {
+  try {
+    const CRON_SECRET = process.env.CRON_SECRET || "finvest_accruals_secret_key";
+
+    // When called over HTTP, authenticate via admin JWT or cron secret
+    if (req && res) {
+      const authHeader = req.headers?.authorization;
+      const bearerToken =
+        authHeader && authHeader.startsWith("Bearer ")
+          ? authHeader.split(" ")[1]
+          : null;
+
+      const providedSecret =
+        req.headers?.["x-cron-secret"] ||
+        req.query?.secret ||
+        (req.body?.secret ? req.body.secret : null) ||
+        bearerToken;
+
+      const isAuthorizedUser =
+        req.user && (req.user.role === "admin" || req.user.role === "superadmin");
+      const isValidSecret = providedSecret && providedSecret === CRON_SECRET;
+
+      if (!isAuthorizedUser && !isValidSecret) {
+        return res.status(401).json({
+          status: "fail",
+          message:
+            "Unauthorized: Please provide a valid 'x-cron-secret' header, '?secret=' parameter, or admin credentials.",
+        });
+      }
+    }
+
+    const currentDate = moment();
+    const quarterDays = getQuarterDetails();
+
+    // Query ONLY active, non-archived mandates
+    const investments = await Investment.find({
+      active: true,
+      archived: false,
+    }).populate(["addOns", "oneOffs"]);
+
+    console.log(
+      `[AccrualsEngine] Executing daily calculations for ${investments.length} active mandate(s)...`
+    );
+
+    let updatedCount = 0;
+    let totalGrossAccrued = 0;
+    let totalManagementFees = 0;
+    let totalNetAccrued = 0;
+    const details = [];
+
+    for (const investment of investments) {
+      // Determine effective calculation date (clamp to quarterEndDate if reached)
+      let calcDate = currentDate;
+      if (investment.quarterEndDate) {
+        const qEnd = moment(investment.quarterEndDate);
+        if (currentDate.isAfter(qEnd)) {
+          calcDate = qEnd;
+        }
+      }
+
+      const daysSinceStart = calcDate.diff(moment(investment.startDate), "days");
+      if (daysSinceStart <= 0) continue;
+
+      // 1. Principal Daily Return
+      const principalDailyReturn = calculateDailyRate(
+        investment.principal,
+        investment.guaranteedRate ?? 8,
+        quarterDays
+      );
+      const principalReturn = principalDailyReturn * daysSinceStart;
+      investment.principalAccruedReturn = principalReturn;
+
+      // 2. Add-on Returns
+      let totalAddOnReturn = 0;
+      if (Array.isArray(investment.addOns)) {
+        for (const addOn of investment.addOns) {
+          if (addOn.status !== "active") continue;
+
+          let addOnCalcDate = currentDate;
+          if (investment.quarterEndDate) {
+            const qEnd = moment(investment.quarterEndDate);
+            if (currentDate.isAfter(qEnd)) addOnCalcDate = qEnd;
+          }
+
+          const addOnDays = addOnCalcDate.diff(moment(addOn.startDate), "days");
+          if (addOnDays <= 0) continue;
+
+          // Only charge interest if amount is at least 5000 GHS
+          if (addOn.amount < 5000) {
+            addOn.accruedAddOnInterest = 0;
+            await addOn.save();
+            continue;
+          }
+
+          const dailyAddOnReturn = calculateDailyRate(
+            addOn.amount,
+            investment.guaranteedRate ?? 8,
+            quarterDays
+          );
+          const addOnInterest = dailyAddOnReturn * addOnDays;
+          addOn.accruedAddOnInterest = addOnInterest;
+          await addOn.save();
+          totalAddOnReturn += addOnInterest;
+        }
+      }
+      investment.addOnAccruedReturn = totalAddOnReturn;
+
+      // 3. Management Fee
+      const grossReturn = principalReturn + totalAddOnReturn;
+      const feeRate =
+        investment.managementFeeRate !== undefined ? investment.managementFeeRate : 20;
+      const managementFee = (grossReturn * feeRate) / 100;
+      investment.managementFee = managementFee;
+
+      // 4. Net Accrued Return
+      const performanceYield = Number(investment.performanceYield || 0);
+      const operationalCost = Number(investment.operationalCost || 0);
+      const netReturn = Math.max(
+        grossReturn + performanceYield - (managementFee + operationalCost),
+        0
+      );
+      investment.totalAccruedReturn = netReturn;
+
+      await investment.save({ validateBeforeSave: false });
+
+      updatedCount++;
+      totalGrossAccrued += principalReturn + totalAddOnReturn;
+      totalManagementFees += managementFee;
+      totalNetAccrued += netReturn;
+
+      details.push({
+        investmentId: investment._id,
+        transactionId: investment.transactionId,
+        daysActive: daysSinceStart,
+        principalAccrued: principalReturn,
+        addOnAccrued: totalAddOnReturn,
+        managementFee,
+        totalAccruedReturn: netReturn,
+      });
+    }
+
+    const resultSummary = {
+      activeMandatesChecked: investments.length,
+      mandatesUpdated: updatedCount,
+      quarterDays,
+      totalGrossAccrued,
+      totalManagementFees,
+      totalNetAccrued,
+      timestamp: new Date().toISOString(),
+      details,
+    };
+
+    if (res) {
+      return res.status(200).json({
+        status: "success",
+        message: `Daily accruals calculated successfully for ${updatedCount} active mandate(s)`,
+        data: resultSummary,
+      });
+    }
+
+    return resultSummary;
+  } catch (err) {
+    console.error("[AccrualsEngine] Error calculating daily accruals:", err);
+    if (res && next) {
+      return next(err);
+    } else if (res) {
+      return res.status(500).json({
+        status: "error",
+        message: err.message || "Failed to calculate daily accruals",
+      });
+    }
+    throw err;
+  }
+};
+
