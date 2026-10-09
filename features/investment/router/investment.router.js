@@ -8,9 +8,17 @@ import {
   updateInvestment,
   archiveTransactions,
   rolloverInvestments,
+  getRolloverCandidates,
+  executeSingleRollover,
+  executeBatchRollover,
 } from "../controller/investment.controller.js";
 
 const router = express.Router();
+
+// manual rollover routes
+router.get("/rollover/candidates", verifyToken, getRolloverCandidates);
+router.post("/rollover/execute-single", verifyToken, executeSingleRollover);
+router.post("/rollover/execute-batch", verifyToken, executeBatchRollover);
 
 // investment routes
 router.get("/", getAllInvestments);

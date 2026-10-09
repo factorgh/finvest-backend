@@ -365,3 +365,321 @@ export const deleteInvestment = catchAsync(async (req, res, nex) => {
   }
   res.status(204).json({ status: "success", data: null });
 });
+
+// Manual Rollover Controllers
+
+export const getRolloverCandidates = catchAsync(async (req, res, next) => {
+  const { sourceQuarter, targetQuarter } = req.query;
+  const currentDate = new Date();
+  const currentQuarterName = getQuarter(currentDate); // e.g. "2026-Q3"
+  const defaultTargetQuarter = currentQuarterName.split("-")[1] || "Q3";
+
+  const prevDate = new Date(currentDate);
+  prevDate.setMonth(prevDate.getMonth() - 3);
+  const prevQuarterName = getQuarter(prevDate);
+  const defaultSourceQuarter = prevQuarterName.split("-")[1] || "Q2";
+
+  const activeSourceQuarter = sourceQuarter || defaultSourceQuarter;
+  const activeTargetQuarter = targetQuarter || defaultTargetQuarter;
+
+  const query = sourceQuarter
+    ? { quarter: sourceQuarter }
+    : {
+        $or: [
+          { quarter: activeSourceQuarter },
+          { active: true, archived: false },
+        ],
+      };
+
+  const investments = await Investment.find(query)
+    .select("+archived +active")
+    .populate([
+      { path: "userId", select: "name displayName email license photo" },
+      { path: "owners.user", select: "name displayName email license photo" },
+      "addOns",
+      "oneOffs",
+    ])
+    .sort({ createdAt: -1 });
+
+  const candidates = [];
+  let totalEndingPrincipal = 0;
+  let totalAccruedReturn = 0;
+  let totalProjectedRollover = 0;
+  let alreadyRolledOverCount = 0;
+
+  for (const inv of investments) {
+    const existingRollover = await Investment.findOne({
+      previousTransactionId: inv._id,
+      quarter: activeTargetQuarter,
+    }).select("transactionId principal quarter createdAt");
+
+    const isRolledOver = !!existingRollover;
+    if (isRolledOver) {
+      alreadyRolledOverCount++;
+    }
+
+    const endingPrincipal = Number(inv.principal || 0);
+    const accruedReturn = Number(
+      inv.totalAccruedReturn ?? inv.principalAccruedReturn ?? 0
+    );
+    const netClosingBalance = endingPrincipal + accruedReturn;
+    const suggestedNewPrincipal = netClosingBalance;
+
+    totalEndingPrincipal += endingPrincipal;
+    totalAccruedReturn += accruedReturn;
+    totalProjectedRollover += suggestedNewPrincipal;
+
+    candidates.push({
+      investmentId: inv._id,
+      transactionId: inv.transactionId,
+      name: inv.name,
+      user: inv.userId,
+      owners: inv.owners,
+      isJoint: inv.isJoint,
+      sourceQuarter: inv.quarter,
+      targetQuarter: activeTargetQuarter,
+      startDate: inv.startDate,
+      quarterEndDate: inv.quarterEndDate,
+      endingPrincipal,
+      accruedReturn,
+      netClosingBalance,
+      suggestedNewPrincipal,
+      guaranteedRate: inv.guaranteedRate ?? 8,
+      managementFeeRate: inv.managementFeeRate ?? 20,
+      operationalCost: inv.operationalCost ?? 0,
+      performanceYield: inv.performanceYield ?? 0,
+      archived: inv.archived,
+      active: inv.active,
+      isRolledOver,
+      existingRolloverId: existingRollover?._id || null,
+      existingRolloverTransactionId: existingRollover?.transactionId || null,
+    });
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      sourceQuarter: activeSourceQuarter,
+      targetQuarter: activeTargetQuarter,
+      summary: {
+        totalCandidates: candidates.length,
+        alreadyRolledOverCount,
+        pendingCount: candidates.length - alreadyRolledOverCount,
+        totalEndingPrincipal,
+        totalAccruedReturn,
+        totalProjectedRollover,
+      },
+      candidates,
+    },
+  });
+});
+
+export const executeSingleRollover = catchAsync(async (req, res, next) => {
+  const {
+    investmentId,
+    targetQuarter,
+    newPrincipal,
+    guaranteedRate = 8,
+    managementFeeRate = 20,
+    operationalCost = 0,
+    performanceYield = 0,
+    startDate,
+    quarterEndDate,
+    notes,
+  } = req.body;
+
+  if (!investmentId) {
+    return res.status(400).json({ status: "fail", message: "Investment ID is required" });
+  }
+
+  const sourceInv = await Investment.findById(investmentId).populate("userId");
+  if (!sourceInv) {
+    return res.status(404).json({ status: "fail", message: "Source mandate not found" });
+  }
+
+  const effectiveTargetQuarter = targetQuarter || getQuarter(new Date()).split("-")[1];
+
+  const existingRollover = await Investment.findOne({
+    previousTransactionId: sourceInv._id,
+    quarter: effectiveTargetQuarter,
+  });
+
+  if (existingRollover) {
+    return res.status(400).json({
+      status: "fail",
+      message: `Mandate has already been rolled over to ${effectiveTargetQuarter} (Transaction ID: ${existingRollover.transactionId})`,
+    });
+  }
+
+  sourceInv.archived = true;
+  sourceInv.active = false;
+  await sourceInv.save({ validateBeforeSave: false });
+
+  const newStartDate = startDate ? new Date(startDate) : new Date();
+  const defaultQuarterEnd = getQuarterEndDate(newStartDate);
+  const newEndDate = quarterEndDate ? new Date(quarterEndDate) : defaultQuarterEnd;
+
+  const principalToSet =
+    newPrincipal !== undefined && newPrincipal !== null && !isNaN(Number(newPrincipal))
+      ? Number(newPrincipal)
+      : Number(sourceInv.principal) + Number(sourceInv.totalAccruedReturn || 0);
+
+  const newTransaction = await Investment.create({
+    userId: sourceInv.userId?._id || sourceInv.userId,
+    name: sourceInv.name,
+    principal: Math.max(0, principalToSet),
+    accruedReturn: 0,
+    quarter: effectiveTargetQuarter,
+    transactionId: generateTransactionId(),
+    startDate: newStartDate,
+    quarterEndDate: newEndDate,
+    archived: false,
+    active: true,
+    mandate: sourceInv.mandate || [],
+    partnerForm: sourceInv.partnerForm || [],
+    certificate: sourceInv.certificate || [],
+    checklist: sourceInv.checklist || [],
+    others: sourceInv.others || [],
+    addOns: [],
+    oneOffs: [],
+    previousTransactionId: sourceInv._id,
+    owners: sourceInv.owners || [],
+    isJoint: sourceInv.isJoint || false,
+    guaranteedRate: Number(guaranteedRate),
+    managementFeeRate: Number(managementFeeRate),
+    operationalCost: Number(operationalCost),
+    performanceYield: Number(performanceYield),
+    notes: notes || undefined,
+  });
+
+  await recalculateInvestment(newTransaction._id);
+
+  const populatedNewTransaction = await Investment.findById(newTransaction._id).populate([
+    { path: "userId", select: "name displayName email license" },
+    { path: "owners.user", select: "name displayName email license" },
+  ]);
+
+  res.status(201).json({
+    status: "success",
+    message: "Mandate successfully rolled over with manual values",
+    data: populatedNewTransaction,
+  });
+});
+
+export const executeBatchRollover = catchAsync(async (req, res, next) => {
+  const { rollovers, targetQuarter } = req.body;
+
+  if (!Array.isArray(rollovers) || rollovers.length === 0) {
+    return res.status(400).json({ status: "fail", message: "Please provide a non-empty rollovers array" });
+  }
+
+  const results = [];
+  const errors = [];
+
+  for (const item of rollovers) {
+    try {
+      const {
+        investmentId,
+        newPrincipal,
+        guaranteedRate = 8,
+        managementFeeRate = 20,
+        operationalCost = 0,
+        performanceYield = 0,
+        startDate,
+        quarterEndDate,
+        notes,
+      } = item;
+
+      if (!investmentId) {
+        errors.push({ investmentId, error: "Missing investment ID" });
+        continue;
+      }
+
+      const sourceInv = await Investment.findById(investmentId);
+      if (!sourceInv) {
+        errors.push({ investmentId, error: "Source mandate not found" });
+        continue;
+      }
+
+      const effectiveTargetQuarter =
+        item.targetQuarter || targetQuarter || getQuarter(new Date()).split("-")[1];
+
+      const existingRollover = await Investment.findOne({
+        previousTransactionId: sourceInv._id,
+        quarter: effectiveTargetQuarter,
+      });
+
+      if (existingRollover) {
+        errors.push({
+          investmentId,
+          error: `Already rolled over to ${effectiveTargetQuarter}`,
+        });
+        continue;
+      }
+
+      sourceInv.archived = true;
+      sourceInv.active = false;
+      await sourceInv.save({ validateBeforeSave: false });
+
+      const newStartDate = startDate ? new Date(startDate) : new Date();
+      const defaultQuarterEnd = getQuarterEndDate(newStartDate);
+      const newEndDate = quarterEndDate ? new Date(quarterEndDate) : defaultQuarterEnd;
+
+      const principalToSet =
+        newPrincipal !== undefined && newPrincipal !== null && !isNaN(Number(newPrincipal))
+          ? Number(newPrincipal)
+          : Number(sourceInv.principal) + Number(sourceInv.totalAccruedReturn || 0);
+
+      const newTransaction = await Investment.create({
+        userId: sourceInv.userId,
+        name: sourceInv.name,
+        principal: Math.max(0, principalToSet),
+        accruedReturn: 0,
+        quarter: effectiveTargetQuarter,
+        transactionId: generateTransactionId(),
+        startDate: newStartDate,
+        quarterEndDate: newEndDate,
+        archived: false,
+        active: true,
+        mandate: sourceInv.mandate || [],
+        partnerForm: sourceInv.partnerForm || [],
+        certificate: sourceInv.certificate || [],
+        checklist: sourceInv.checklist || [],
+        others: sourceInv.others || [],
+        addOns: [],
+        oneOffs: [],
+        previousTransactionId: sourceInv._id,
+        owners: sourceInv.owners || [],
+        isJoint: sourceInv.isJoint || false,
+        guaranteedRate: Number(guaranteedRate),
+        managementFeeRate: Number(managementFeeRate),
+        operationalCost: Number(operationalCost),
+        performanceYield: Number(performanceYield),
+        notes: notes || undefined,
+      });
+
+      await recalculateInvestment(newTransaction._id);
+      results.push({
+        sourceInvestmentId: investmentId,
+        newInvestmentId: newTransaction._id,
+        transactionId: newTransaction.transactionId,
+        principal: newTransaction.principal,
+        quarter: newTransaction.quarter,
+      });
+    } catch (err) {
+      errors.push({
+        investmentId: item.investmentId,
+        error: err?.message || "Rollover failed",
+      });
+    }
+  }
+
+  res.status(200).json({
+    status: "success",
+    message: `Batch rollover processed: ${results.length} succeeded, ${errors.length} failed`,
+    data: {
+      succeeded: results,
+      errors,
+    },
+  });
+});
