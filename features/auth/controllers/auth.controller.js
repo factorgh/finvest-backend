@@ -62,7 +62,7 @@ const sanitizeInput = (input) => {
  * User signup
  */
 export const signup = catchAsync(async (req, res, next) => {
-  const { name, email, password, passwordConfirm, displayName } = req.body;
+  const { name, email, password, passwordConfirm, displayName, agreedToTerms } = req.body;
 
   // Required fields
   if (!name || !email || !password || !passwordConfirm) {
@@ -102,6 +102,8 @@ export const signup = catchAsync(async (req, res, next) => {
     password,
     passwordConfirm,
     displayName: sanitizedDisplayName,
+    agreedToTerms: agreedToTerms !== undefined ? Boolean(agreedToTerms) : true,
+    agreedToTermsAt: new Date(),
   });
 
   createSendToken(newUser, 201, res);
