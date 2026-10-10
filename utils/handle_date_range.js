@@ -110,8 +110,16 @@ export const isQuarterEnd = (date = new Date()) => {
 //   };
 // };
 export const getQuarterDetails = (date = new Date()) => {
-  const year = date.getFullYear();
-  const quarter = Math.ceil((date.getMonth() + 1) / 3);
+  const d = moment.isMoment(date)
+    ? date.toDate()
+    : date instanceof Date
+    ? date
+    : date
+    ? new Date(date)
+    : new Date();
+
+  const year = d.getFullYear();
+  const quarter = Math.ceil((d.getMonth() + 1) / 3);
 
   // Calculate the start and end dates of the quarter
   const startMonth = (quarter - 1) * 3; // 0 for Q1, 3 for Q2, 6 for Q3, 9 for Q4
@@ -119,7 +127,7 @@ export const getQuarterDetails = (date = new Date()) => {
   const endDate = new Date(year, startMonth + 3, 0); // Last day of the quarter
 
   // Get the total number of days in the quarter
-  const daysInQuarter = (endDate - startDate) / (1000 * 60 * 60 * 24) + 1;
+  const daysInQuarter = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
 
   return daysInQuarter;
 };

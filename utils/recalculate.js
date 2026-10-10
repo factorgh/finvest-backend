@@ -1,7 +1,7 @@
 import moment from "moment";
 import Investment from "../features/investment/model/investment.model.js";
 import { calculateDailyRate } from "./halper.js";
-import { calculateDays30360 } from "./handle_date_range.js";
+import { getQuarterDetails } from "./handle_date_range.js";
 
 export const recalculateInvestment = async (investmentId) => {
   try {
@@ -16,12 +16,12 @@ export const recalculateInvestment = async (investmentId) => {
 
     const currentDate = moment();
     const calculationEndDate = moment.min(currentDate, moment(investment.quarterEndDate));
-    const quarterDays = 90;
+    const quarterDays = getQuarterDetails(investment.startDate || investment.creationDate || new Date());
 
-    const daysSinceStart = calculateDays30360(investment.startDate, calculationEndDate);
+    const daysSinceStart = Math.max(0, calculationEndDate.diff(moment(investment.startDate), "days"));
 
     console.log(
-      `[Day Count Log] Investment ID: ${investmentId} | Start Date: ${moment(investment.startDate).format("YYYY-MM-DD")} | End Date: ${calculationEndDate.format("YYYY-MM-DD")} | Resulting Day Count: ${daysSinceStart}`
+      `[Day Count Log] Investment ID: ${investmentId} | Start Date: ${moment(investment.startDate).format("YYYY-MM-DD")} | End Date: ${calculationEndDate.format("YYYY-MM-DD")} | Days Elapsed: ${daysSinceStart} | Quarter Days: ${quarterDays}`
     );
 
     // ----- Principal Return Calculation -----
@@ -42,7 +42,7 @@ export const recalculateInvestment = async (investmentId) => {
       if (addOn.status !== "active") continue;
 
       const addOnEndDate = moment.min(currentDate, moment(investment.quarterEndDate));
-      const addOnDays = calculateDays30360(addOn.startDate, addOnEndDate);
+      const addOnDays = Math.max(0, addOnEndDate.diff(moment(addOn.startDate), "days"));
 
       console.log(
         `[Day Count Log] AddOn ID: ${addOn._id} | Start Date: ${moment(addOn.startDate).format("YYYY-MM-DD")} | End Date: ${addOnEndDate.format("YYYY-MM-DD")} | Resulting Day Count: ${addOnDays}`
